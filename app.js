@@ -1548,6 +1548,21 @@ document.querySelector("#staffSettingsButton").addEventListener("click", () => {
   showToast("担当者を追加しました");
 });
 
+document.querySelector("#deleteStaffButton").addEventListener("click", () => {
+  const name = cashierSelect.value || state.cashier;
+  if (state.staff.length <= 1) {
+    showToast("担当者は最低1人必要です");
+    return;
+  }
+  if (!name || !confirm(`${name} を担当者から削除しますか？`)) return;
+  state.staff = state.staff.filter((staffName) => staffName !== name);
+  state.cashier = state.staff[0] || "職員";
+  localStorage.setItem(storageKeys.cashier, state.cashier);
+  saveStaff();
+  renderStaffSelectors();
+  showToast("担当者を削除しました");
+});
+
 document.querySelectorAll("[data-cash]").forEach((button) => {
   button.addEventListener("click", () => {
     rememberUndo();

@@ -48,6 +48,7 @@ const state = {
   cloudClient: null,
   cloudMode: false
 };
+let undoSnapshot = null;
 if (!state.customers.length) {
   state.customers = loadCustomers();
 }
@@ -138,6 +139,28 @@ function escapeHtml(value) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function rememberUndo() {
+  undoSnapshot = {
+    customers: clone(state.customers),
+    activeCustomerId: state.activeCustomerId,
+    paymentMethod: state.paymentMethod
+  };
+}
+
+function undoLastAction() {
+  if (!undoSnapshot) {
+    showToast("戻せる操作がありません");
+    return;
+  }
+  state.customers = clone(undoSnapshot.customers);
+  state.activeCustomerId = undoSnapshot.activeCustomerId;
+  state.paymentMethod = undoSnapshot.paymentMethod || "cash";
+  undoSnapshot = null;
+  saveCustomers();
+  renderAll();
+  showToast("直前の操作を取り消しました");
 }
 
 function makeId(prefix) {
@@ -452,10 +475,11 @@ function activeCustomer() {
 function defaultCustomer() {
   return {
     id: makeId("customer"),
-    name: "店頭販売",
-    companyName: "店頭販売",
-    billingName: "店頭販売",
-    deliveryName: "店頭販売",
+    name: "販売先を選んでください",
+    companyName: "",
+    billingName: "",
+    deliveryName: "",
+    saleKind: "",
     memo: "",
     cart: [],
     paidInput: ""
@@ -466,13 +490,24 @@ function findOpenCustomerByName(name) {
   return state.customers.find((customer) => customer.name === name);
 }
 
-function openCustomerCart(name, record = {}) {
+function saleTargetSelected(customer = activeCustomer()) {
+  return customer && (customer.saleKind === "store" || customer.saleKind === "delivery");
+}
+
+function requireSaleTarget() {
+  if (saleTargetSelected()) return true;
+  showToast("先に「店頭販売」か「配達先」を選んでください");
+  return false;
+}
+
+function openCustomerCart(name, record = {}, saleKind = "delivery") {
   const existing = findOpenCustomerByName(name);
   if (existing) {
     state.activeCustomerId = existing.id;
     existing.companyName = record.company || existing.companyName || name;
     existing.billingName = record.billing || existing.billingName || name;
     existing.deliveryName = record.delivery || existing.deliveryName || name;
+    existing.saleKind = saleKind;
     existing.memo = existing.memo || "";
   } else {
     const customer = {
@@ -481,6 +516,7 @@ function openCustomerCart(name, record = {}) {
       companyName: record.company || name,
       billingName: record.billing || name,
       deliveryName: record.delivery || name,
+      saleKind,
       memo: "",
       cart: [],
       paidInput: ""
@@ -522,17 +558,27 @@ function renderCustomers() {
 
 function renderDeliveryNames() {
   deliverySelect.innerHTML = "";
-  const records = state.deliveryRecords.length > 0
-    ? state.deliveryRecords
-    : [{ id: "store-sale", company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }];
-  records.filter((record) => record.company !== "店頭販売").forEach((record) => {
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "配達先を選ぶ";
+  deliverySelect.append(placeholder);
+
+  state.deliveryRecords.filter((record) => record.company !== "店頭販売").forEach((record) => {
     const option = document.createElement("option");
     option.value = record.id;
     option.textContent = deliveryLabel(record);
     deliverySelect.append(option);
   });
+  const customer = activeCustomer();
+  const selectedRecord = state.deliveryRecords.find((record) =>
+    customer && customer.saleKind === "delivery" &&
+    record.company === customer.companyName &&
+    record.billing === customer.billingName &&
+    record.delivery === customer.deliveryName
+  );
+  deliverySelect.value = selectedRecord ? selectedRecord.id : "";
   const deleteButton = document.querySelector("#deleteDeliveryButton");
-  if (deleteButton) deleteButton.disabled = deliverySelect.options.length === 0;
+  if (deleteButton) deleteButton.disabled = state.deliveryRecords.length === 0;
 }
 
 function renderStaffSelectors() {
@@ -644,6 +690,7 @@ function renderTotals() {
   const total = Math.max(currentTotal(), 0);
   const paid = paidValue();
   const change = Math.max(paid - total, 0);
+  const targetReady = saleTargetSelected();
 
   totalAmount.textContent = yen(total);
   paidAmount.textContent = yen(paid);
@@ -652,15 +699,15 @@ function renderTotals() {
   if (state.paymentMethod === "cash") {
     changeLabel.textContent = "おつり";
     changeAmount.textContent = yen(change);
-    checkoutButton.disabled = total <= 0 || paid < total;
+    checkoutButton.disabled = !targetReady || total <= 0 || paid < total;
   } else if (state.paymentMethod === "paypay") {
     changeLabel.textContent = "PayPay";
     changeAmount.textContent = yen(total);
-    checkoutButton.disabled = total <= 0;
+    checkoutButton.disabled = !targetReady || total <= 0;
   } else {
     changeLabel.textContent = "未収";
     changeAmount.textContent = yen(total);
-    checkoutButton.disabled = total <= 0;
+    checkoutButton.disabled = !targetReady || total <= 0;
   }
 }
 
@@ -680,8 +727,10 @@ function renderAll() {
 }
 
 function addToCart(id) {
+  if (!requireSaleTarget()) return;
   const product = state.products.find((item) => item.id === id);
   if (!product) return;
+  rememberUndo();
   const customer = activeCustomer();
   const existing = customer.cart.find((item) => item.id === id);
   if (existing) existing.qty += 1;
@@ -691,6 +740,7 @@ function addToCart(id) {
 }
 
 function addCustomItem() {
+  if (!requireSaleTarget()) return;
   const nameInput = document.querySelector("#customItemName");
   const priceInput = document.querySelector("#customItemPrice");
   const name = nameInput.value.trim() || "特別商品";
@@ -701,6 +751,7 @@ function addCustomItem() {
     return;
   }
 
+  rememberUndo();
   const customer = activeCustomer();
   customer.cart.push({
     id: makeId("custom-item"),
@@ -719,6 +770,7 @@ function changeQty(id, amount) {
   const customer = activeCustomer();
   const item = customer.cart.find((cartItem) => cartItem.id === id);
   if (!item) return;
+  rememberUndo();
   item.qty += amount;
   if (item.qty <= 0) customer.cart = customer.cart.filter((cartItem) => cartItem.id !== id);
   saveCustomers();
@@ -731,6 +783,8 @@ function setQty(id, value) {
   if (!item) return;
 
   const qty = Math.floor(Number(value || 0));
+  if (item.qty === qty) return;
+  rememberUndo();
   if (qty <= 0) {
     customer.cart = customer.cart.filter((cartItem) => cartItem.id !== id);
   } else {
@@ -742,6 +796,8 @@ function setQty(id, value) {
 
 function clearActiveCart() {
   const customer = activeCustomer();
+  if (customer.cart.length === 0 && !customer.paidInput && !customer.memo) return;
+  rememberUndo();
   customer.cart = [];
   customer.paidInput = "";
   customer.memo = "";
@@ -766,6 +822,7 @@ function showToast(message) {
 }
 
 async function checkout() {
+  if (!requireSaleTarget()) return;
   const customer = activeCustomer();
   const total = Math.max(currentTotal(), 0);
   const paid = state.paymentMethod === "cash" || state.paymentMethod === "paypay" ? paidValueForSale(total) : 0;
@@ -1429,6 +1486,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 document.querySelectorAll(".method").forEach((button) => {
   button.addEventListener("click", () => {
+    if (state.paymentMethod !== button.dataset.payment) rememberUndo();
     state.paymentMethod = button.dataset.payment;
     renderAll();
   });
@@ -1446,9 +1504,8 @@ settlementStaffSelect.addEventListener("change", () => {
   if (cashierSelect) cashierSelect.value = state.cashier;
 });
 
-document.querySelector("#addStaffButton").addEventListener("click", () => {
-  const input = document.querySelector("#newStaffName");
-  const name = input.value.trim();
+document.querySelector("#staffSettingsButton").addEventListener("click", () => {
+  const name = (prompt("追加する担当者名を入力してください") || "").trim();
   if (!name) {
     showToast("担当者名を入れてください");
     return;
@@ -1459,13 +1516,13 @@ document.querySelector("#addStaffButton").addEventListener("click", () => {
   }
   state.cashier = name;
   localStorage.setItem(storageKeys.cashier, state.cashier);
-  input.value = "";
   renderStaffSelectors();
   showToast("担当者を追加しました");
 });
 
 document.querySelectorAll("[data-cash]").forEach((button) => {
   button.addEventListener("click", () => {
+    rememberUndo();
     activeCustomer().paidInput = String(paidValue() + Number(button.dataset.cash));
     saveCustomers();
     renderTotals();
@@ -1474,6 +1531,7 @@ document.querySelectorAll("[data-cash]").forEach((button) => {
 
 document.querySelectorAll("[data-key]").forEach((button) => {
   button.addEventListener("click", () => {
+    rememberUndo();
     const customer = activeCustomer();
     customer.paidInput = `${customer.paidInput}${button.dataset.key}`.replace(/^0+/, "");
     saveCustomers();
@@ -1483,27 +1541,44 @@ document.querySelectorAll("[data-key]").forEach((button) => {
 
 document.querySelector("#backspaceButton").addEventListener("click", () => {
   const customer = activeCustomer();
+  if (!customer.paidInput) return;
+  rememberUndo();
   customer.paidInput = customer.paidInput.slice(0, -1);
   saveCustomers();
   renderTotals();
 });
 
 document.querySelector("#exactButton").addEventListener("click", () => {
+  rememberUndo();
   activeCustomer().paidInput = String(Math.max(currentTotal(), 0));
   saveCustomers();
   renderTotals();
 });
 
 document.querySelector("#clearPaidButton").addEventListener("click", () => {
+  if (!activeCustomer().paidInput) return;
+  rememberUndo();
   activeCustomer().paidInput = "";
   saveCustomers();
   renderTotals();
 });
 
 deliverySelect.addEventListener("change", () => {
+  if (!deliverySelect.value) return;
+  const current = activeCustomer();
   const record = state.deliveryRecords.find((item) => item.id === deliverySelect.value);
   if (!record) return;
-  openCustomerCart(deliveryLabel(record), record);
+  const nextName = deliveryLabel(record);
+  if (current.cart.length > 0 && current.name !== nextName) {
+    const ok = confirm("いまのカートに商品が入っています。配達先を変えますか？");
+    if (!ok) {
+      renderAll();
+      showToast("配達先の変更をやめました");
+      return;
+    }
+  }
+  rememberUndo();
+  openCustomerCart(nextName, record, "delivery");
 });
 
 if (cartMemo) {
@@ -1514,7 +1589,16 @@ if (cartMemo) {
 }
 
 document.querySelector("#storeSaleButton").addEventListener("click", () => {
-  openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" });
+  const current = activeCustomer();
+  if (current.cart.length > 0 && current.name !== "店頭販売") {
+    const ok = confirm("いまのカートに商品が入っています。店頭販売に変えますか？");
+    if (!ok) {
+      showToast("店頭販売への変更をやめました");
+      return;
+    }
+  }
+  rememberUndo();
+  openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }, "store");
 });
 
 document.querySelector("#addDeliveryButton").addEventListener("click", () => {
@@ -1587,6 +1671,7 @@ document.querySelector("#customItemPrice").addEventListener("keydown", (event) =
 });
 
 document.querySelector("#clearButton").addEventListener("click", clearActiveCart);
+document.querySelector("#undoButton").addEventListener("click", undoLastAction);
 checkoutButton.addEventListener("click", checkout);
 
 document.querySelector("#historyButton").addEventListener("click", async () => {

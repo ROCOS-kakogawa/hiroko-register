@@ -221,7 +221,7 @@ h2 {
 }
 
 .delivery-picker {
-  grid-template-columns: minmax(180px, 1fr) 130px;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.72fr);
 }
 
 .delivery-manage {
@@ -235,7 +235,7 @@ h2 {
   border-radius: 8px;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 96px;
+  grid-template-columns: minmax(150px, 1fr);
   margin-bottom: 10px;
   padding: 10px;
 }
@@ -260,13 +260,18 @@ h2 {
   padding: 8px 10px;
 }
 
+.delivery-picker select {
+  font-size: 17px;
+  min-height: 66px;
+}
+
 .customer-edit {
   grid-template-columns: minmax(160px, 1fr) 110px 78px;
 }
 
 .store-checkout {
-  font-size: 16px;
-  min-height: 52px;
+  font-size: 18px;
+  min-height: 66px;
 }
 
 .custom-product {
@@ -418,6 +423,18 @@ h2 {
   align-items: center;
   display: flex;
   justify-content: space-between;
+}
+
+.cart-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.undo-button {
+  background: #fff6d8;
+  border-color: var(--warm);
+  min-height: 42px;
 }
 
 .text-button {
@@ -840,10 +857,19 @@ dialog::backdrop {
 
   .customer-edit,
   .custom-product,
-  .delivery-picker,
   .delivery-manage,
   .staff-panel {
     grid-template-columns: 1fr;
+  }
+
+  .delivery-picker {
+    grid-template-columns: minmax(0, 1fr) minmax(118px, 0.78fr);
+  }
+
+  .delivery-picker select,
+  .store-checkout {
+    font-size: 15px;
+    min-height: 58px;
   }
 
   .summary-four {
@@ -857,6 +883,17 @@ dialog::backdrop {
 
   .history-filter {
     grid-template-columns: 1fr;
+  }
+
+  .panel-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cart-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .topbar {

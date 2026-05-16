@@ -42,6 +42,7 @@
             <button class="secondary sales-action" id="historyButton" type="button">売上</button>
             <button class="secondary" id="settingsButton" type="button">商品設定</button>
             <button class="secondary" id="deliverySettingsButton" type="button">配達先登録</button>
+            <button class="secondary" id="staffSettingsButton" type="button">担当者登録</button>
             <button class="secondary" id="settlementButton" type="button">日別精算</button>
             <button class="secondary" id="paypayQrButton" type="button">PayPay QR</button>
             <button class="secondary" id="logoutButton" type="button" hidden>ログアウト</button>
@@ -60,8 +61,6 @@
               レジ担当
               <select id="cashierSelect"></select>
             </label>
-            <input id="newStaffName" type="text" placeholder="担当者名を追加">
-            <button class="secondary" id="addStaffButton" type="button">担当追加</button>
           </div>
           <div class="delivery-picker">
             <select id="deliverySelect" aria-label="会社・配達先・請求先を選ぶ"></select>
@@ -105,7 +104,10 @@
         <div class="panel cart-panel">
           <div class="panel-header">
             <h2>注文内容</h2>
-            <button class="text-button" id="clearButton" type="button">このカートを消す</button>
+            <div class="cart-actions">
+              <button class="secondary undo-button" id="undoButton" type="button">直前取消</button>
+              <button class="text-button" id="clearButton" type="button">このカートを消す</button>
+            </div>
           </div>
           <div class="cart-list" id="cartList">
             <p class="empty">商品を選んでください</p>

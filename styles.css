@@ -130,7 +130,7 @@ button:disabled {
 .top-actions {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(112px, 1fr));
+  grid-template-columns: repeat(3, minmax(96px, 1fr));
 }
 
 h1,

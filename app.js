@@ -538,7 +538,15 @@ function paidValue() {
 
 function renderCustomers() {
   customerTabs.innerHTML = "";
-  state.customers.forEach((customer) => {
+  const visibleCustomers = state.customers.filter((customer) =>
+    saleTargetSelected(customer) || customer.cart.length > 0 || customer.paidInput || customer.memo
+  );
+
+  if (visibleCustomers.length === 0) {
+    customerTabs.innerHTML = '<p class="empty">店頭販売か配達先を選ぶと、ここにカートが出ます</p>';
+  }
+
+  visibleCustomers.forEach((customer) => {
     const total = customer.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
     const button = document.createElement("button");
     button.type = "button";
@@ -553,7 +561,7 @@ function renderCustomers() {
   });
 
   document.querySelector("#editCustomerName").value = activeCustomer().name;
-  document.querySelector("#deleteCustomerButton").disabled = state.customers.length <= 1;
+  document.querySelector("#deleteCustomerButton").disabled = visibleCustomers.length <= 1;
 }
 
 function renderDeliveryNames() {
@@ -651,12 +659,15 @@ function renderProducts() {
 
 function renderCart() {
   const customer = activeCustomer();
-  activeCustomerName.textContent = customer.name;
+  const targetReady = saleTargetSelected(customer);
+  activeCustomerName.textContent = targetReady ? customer.name : "未選択";
   if (cartMemo) cartMemo.value = customer.memo || "";
   cartList.innerHTML = "";
 
   if (customer.cart.length === 0) {
-    cartList.innerHTML = '<p class="empty">商品を選んでください</p>';
+    cartList.innerHTML = targetReady
+      ? '<p class="empty">商品を選んでください</p>'
+      : '<p class="empty">先に店頭販売か配達先を選んでください</p>';
     return;
   }
 
@@ -692,7 +703,7 @@ function renderTotals() {
   const change = Math.max(paid - total, 0);
   const targetReady = saleTargetSelected();
 
-  totalAmount.textContent = yen(total);
+  totalAmount.textContent = targetReady || total > 0 ? yen(total) : "未選択";
   paidAmount.textContent = yen(paid);
   cashArea.hidden = state.paymentMethod !== "cash";
 

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#177a6b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="お弁当レジ">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <title>お弁当レジ</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="cloud-config.js"></script>
+  </head>
+  <body>
+    <div class="app-error" id="appError" hidden></div>
+    <div class="login-screen" id="loginScreen" hidden>
+      <form class="login-box" id="loginForm">
+        <h1>お弁当レジ</h1>
+        <label>
+          メールアドレス
+          <input id="loginEmail" type="email" autocomplete="username" required>
+        </label>
+        <label>
+          パスワード
+          <input id="loginPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="checkout" type="submit">ログイン</button>
+        <p id="loginMessage"></p>
+      </form>
+    </div>
+    <main class="app">
+      <section class="products" aria-label="商品">
+        <header class="topbar">
+          <div>
+            <h1>お弁当レジ</h1>
+            <p id="clock">--:--</p>
+          </div>
+          <div class="top-actions">
+            <button class="secondary" id="settingsButton" type="button">商品設定</button>
+            <button class="secondary" id="deliverySettingsButton" type="button">配達先登録</button>
+            <button class="secondary" id="historyButton" type="button">売上</button>
+            <button class="secondary" id="logoutButton" type="button" hidden>ログアウト</button>
+          </div>
+        </header>
+
+        <div class="customer-panel">
+          <div class="customer-head">
+            <h2>販売先</h2>
+            <div class="add-customer">
+              <input id="newCustomerName" type="text" placeholder="お客様名">
+              <button class="secondary" id="addCustomerButton" type="button">追加</button>
+            </div>
+          </div>
+          <div class="delivery-picker">
+            <select id="deliverySelect" aria-label="会社・配達先・請求先を選ぶ"></select>
+            <button class="checkout store-checkout" id="storeSaleButton" type="button">店頭販売</button>
+          </div>
+          <div class="customer-tabs" id="customerTabs" aria-label="お客様別カート"></div>
+          <div class="customer-edit">
+            <input id="editCustomerName" type="text" placeholder="選択中のお客様名">
+            <button class="secondary" id="renameCustomerButton" type="button">名前変更</button>
+            <button class="danger compact-danger" id="deleteCustomerButton" type="button">削除</button>
+          </div>
+        </div>
+
+        <div class="category-tabs" role="tablist" aria-label="商品カテゴリ">
+          <button class="tab active" type="button" data-category="bento">弁当</button>
+          <button class="tab" type="button" data-category="side">惣菜</button>
+          <button class="tab" type="button" data-category="drink">飲み物</button>
+          <button class="tab" type="button" data-category="other">その他</button>
+        </div>
+
+        <div class="custom-product">
+          <input id="customItemName" type="text" placeholder="自由入力の商品名">
+          <input id="customItemPrice" type="number" inputmode="numeric" placeholder="金額">
+          <button class="secondary" id="addCustomItemButton" type="button">金額入力で追加</button>
+        </div>
+
+        <div class="product-grid" id="productGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="register" aria-label="会計">
+        <div class="panel active-customer-panel">
+          <span>いまのカート</span>
+          <strong id="activeCustomerName">お客様1</strong>
+        </div>
+
+        <div class="panel total-panel">
+          <span>合計</span>
+          <strong id="totalAmount">0円</strong>
+        </div>
+
+        <div class="panel cart-panel">
+          <div class="panel-header">
+            <h2>注文内容</h2>
+            <button class="text-button" id="clearButton" type="button">このカートを消す</button>
+          </div>
+          <div class="cart-list" id="cartList">
+            <p class="empty">商品を選んでください</p>
+          </div>
+        </div>
+
+        <div class="panel payment-panel">
+          <h2>支払い方法</h2>
+          <div class="payment-methods">
+            <button class="method active" type="button" data-payment="cash">現金</button>
+            <button class="method" type="button" data-payment="paypay">PayPay</button>
+            <button class="method" type="button" data-payment="unpaid">未収</button>
+          </div>
+          <div id="cashArea">
+            <h2>お預かり</h2>
+            <output id="paidAmount">0円</output>
+            <div class="cash-grid">
+              <button type="button" data-cash="100">100</button>
+              <button type="button" data-cash="500">500</button>
+              <button type="button" data-cash="1000">1000</button>
+              <button type="button" data-cash="5000">5000</button>
+              <button type="button" data-cash="10000">10000</button>
+              <button type="button" id="exactButton">ちょうど</button>
+            </div>
+            <div class="keypad" aria-label="金額入力">
+              <button type="button" data-key="7">7</button>
+              <button type="button" data-key="8">8</button>
+              <button type="button" data-key="9">9</button>
+              <button type="button" data-key="4">4</button>
+              <button type="button" data-key="5">5</button>
+              <button type="button" data-key="6">6</button>
+              <button type="button" data-key="1">1</button>
+              <button type="button" data-key="2">2</button>
+              <button type="button" data-key="3">3</button>
+              <button type="button" data-key="0">0</button>
+              <button type="button" data-key="00">00</button>
+              <button type="button" id="backspaceButton">消す</button>
+            </div>
+            <button class="text-button" id="clearPaidButton" type="button">預かり金を消す</button>
+          </div>
+        </div>
+
+        <div class="panel change-panel">
+          <span id="changeLabel">おつり</span>
+          <strong id="changeAmount">0円</strong>
+        </div>
+
+        <button class="checkout" id="checkoutButton" type="button" disabled>会計する</button>
+      </section>
+    </main>
+
+    <dialog id="historyDialog">
+      <div class="dialog-head">
+        <h2>売上・請求</h2>
+        <button class="icon-button" id="closeHistoryButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="history-filter">
+        <label>
+          表示月
+          <input id="historyMonth" type="month">
+        </label>
+        <label>
+          領収書税率
+          <select id="receiptTaxRate">
+            <option value="8">8%</option>
+            <option value="10">10%</option>
+          </select>
+        </label>
+        <button class="secondary" id="showThisMonthButton" type="button">今月</button>
+      </div>
+      <div class="summary summary-four">
+        <div><span>件数</span><strong id="saleCount">0件</strong></div>
+        <div><span>合計</span><strong id="saleTotal">0円</strong></div>
+        <div><span>現金</span><strong id="cashTotal">0円</strong></div>
+        <div><span>PayPay</span><strong id="paypayTotal">0円</strong></div>
+        <div><span>未収</span><strong id="unpaidTotal">0円</strong></div>
+      </div>
+      <h2 class="subhead">会社別まとめ</h2>
+      <div class="billing-list" id="companyList"></div>
+      <div class="history-list" id="historyList"></div>
+      <h2 class="subhead">請求先別まとめ</h2>
+      <div class="billing-list" id="billingList"></div>
+      <h2 class="subhead">配達先・請求先別まとめ</h2>
+      <div class="billing-list" id="deliveryBillingList"></div>
+      <div class="dialog-actions">
+        <button class="checkout small-checkout" id="invoiceButton" type="button">請求書を作る</button>
+        <button class="secondary" id="exportButton" type="button">CSV保存</button>
+        <button class="danger" id="clearHistoryButton" type="button">売上を消す</button>
+      </div>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <div class="dialog-head">
+        <h2>商品設定</h2>
+        <button class="icon-button" id="closeSettingsButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="settings-list" id="settingsList"></div>
+      <div class="add-product">
+        <select id="newProductCategory" aria-label="カテゴリ">
+          <option value="bento">弁当</option>
+          <option value="side">惣菜</option>
+          <option value="drink">飲み物</option>
+          <option value="other">その他</option>
+        </select>
+        <input id="newProductName" type="text" placeholder="商品名">
+        <input id="newProductPrice" type="number" inputmode="numeric" placeholder="値段">
+        <button class="secondary" id="addProductButton" type="button">追加</button>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary" id="resetProductsButton" type="button">初期メニューに戻す</button>
+        <button class="checkout small-checkout" id="saveSettingsButton" type="button">保存する</button>
+      </div>
+    </dialog>
+
+    <dialog id="deliveryDialog">
+      <div class="dialog-head">
+        <h2>配達先登録</h2>
+        <button class="icon-button" id="closeDeliveryButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="delivery-manage">
+        <input id="newCompanyName" type="text" placeholder="会社名">
+        <input id="newDeliveryName" type="text" placeholder="配達先名（空なら会社名）">
+        <input id="newBillingName" type="text" placeholder="請求先名（空なら会社名）">
+        <button class="secondary" id="addDeliveryButton" type="button">登録</button>
+        <button class="danger compact-danger" id="deleteDeliveryButton" type="button">削除</button>
+      </div>
+      <div class="delivery-list" id="deliveryList"></div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

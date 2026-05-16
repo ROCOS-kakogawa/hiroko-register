@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#177a6b"/>
+  <rect x="76" y="110" width="360" height="292" rx="34" fill="#ffffff"/>
+  <rect x="106" y="140" width="300" height="88" rx="20" fill="#f1b84b"/>
+  <circle cx="158" cy="302" r="34" fill="#177a6b"/>
+  <circle cx="256" cy="302" r="34" fill="#177a6b"/>
+  <circle cx="354" cy="302" r="34" fill="#177a6b"/>
+  <text x="256" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#17211b">REGI</text>
+</svg>

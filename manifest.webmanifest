@@ -1,0 +1,19 @@
+{
+  "name": "お弁当レジ",
+  "short_name": "お弁当レジ",
+  "description": "美食美菜ROCO'S のお弁当販売レジ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f1",
+  "theme_color": "#177a6b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1811,10 +1811,12 @@ document.querySelector("#resetProductsButton").addEventListener("click", () => {
   renderProducts();
 });
 
-document.querySelector("#clearHistoryButton").addEventListener("click", () => {
+document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
   if (!confirm("売上履歴を消しますか？")) return;
   saveSales([]);
+  await saveSharedNow();
   renderHistory();
+  showToast("売上を削除しました");
 });
 
 if (loginForm) {

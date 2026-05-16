@@ -76,6 +76,7 @@ const billingList = document.querySelector("#billingList");
 const deliveryBillingList = document.querySelector("#deliveryBillingList");
 const companyList = document.querySelector("#companyList");
 const historyMonth = document.querySelector("#historyMonth");
+const historyDate = document.querySelector("#historyDate");
 const receiptTaxRate = document.querySelector("#receiptTaxRate");
 const saleCount = document.querySelector("#saleCount");
 const saleTotal = document.querySelector("#saleTotal");
@@ -836,6 +837,9 @@ function nextMonthEndText(selectedMonth) {
 }
 
 function selectedHistorySales() {
+  if (historyDate && historyDate.value) {
+    return getSales().filter((sale) => dateValue(new Date(sale.at)) === historyDate.value);
+  }
   const selectedMonth = historyMonth.value || monthValue();
   return getSales().filter((sale) => saleMonthValue(sale) === selectedMonth);
 }
@@ -1635,10 +1639,22 @@ document.querySelector("#showTodaySettlementButton").addEventListener("click", a
 });
 historyMonth.addEventListener("change", async () => {
   await syncFromShared();
+  if (historyDate) historyDate.value = "";
+  renderHistory();
+});
+historyDate.addEventListener("change", async () => {
+  await syncFromShared();
   renderHistory();
 });
 document.querySelector("#showThisMonthButton").addEventListener("click", async () => {
   await syncFromShared();
+  historyMonth.value = monthValue();
+  if (historyDate) historyDate.value = "";
+  renderHistory();
+});
+document.querySelector("#showTodayHistoryButton").addEventListener("click", async () => {
+  await syncFromShared();
+  historyDate.value = dateValue();
   historyMonth.value = monthValue();
   renderHistory();
 });

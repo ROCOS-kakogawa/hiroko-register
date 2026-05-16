@@ -216,6 +216,10 @@ h2 {
   margin-top: 10px;
 }
 
+.customer-edit {
+  display: none;
+}
+
 .delivery-picker {
   grid-template-columns: minmax(180px, 1fr) 130px;
 }
@@ -312,6 +316,14 @@ h2 {
   border: 2px solid var(--line);
   min-height: 52px;
   padding: 10px 12px;
+}
+
+.sales-action {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  min-height: 64px;
 }
 
 .tab.active {

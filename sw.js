@@ -1,11 +1,13 @@
-const CACHE_NAME = "bento-register-v1";
+const CACHE_NAME = "bento-register-v2";
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icon.svg"
+  "./icon.svg",
+  "./cloud-config.js",
+  "./paypay-qr.png"
 ];
 
 self.addEventListener("install", (event) => {

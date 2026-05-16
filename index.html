@@ -39,11 +39,11 @@
             <p id="clock">--:--</p>
           </div>
           <div class="top-actions">
+            <button class="secondary sales-action" id="historyButton" type="button">売上</button>
             <button class="secondary" id="settingsButton" type="button">商品設定</button>
             <button class="secondary" id="deliverySettingsButton" type="button">配達先登録</button>
             <button class="secondary" id="settlementButton" type="button">日別精算</button>
             <button class="secondary" id="paypayQrButton" type="button">PayPay QR</button>
-            <button class="secondary" id="historyButton" type="button">売上</button>
             <button class="secondary" id="logoutButton" type="button" hidden>ログアウト</button>
           </div>
         </header>
@@ -172,12 +172,17 @@
           <input id="historyMonth" type="month">
         </label>
         <label>
+          表示日
+          <input id="historyDate" type="date">
+        </label>
+        <label>
           領収書税率
           <select id="receiptTaxRate">
             <option value="8">8%</option>
             <option value="10">10%</option>
           </select>
         </label>
+        <button class="secondary" id="showTodayHistoryButton" type="button">今日</button>
         <button class="secondary" id="showThisMonthButton" type="button">今月</button>
       </div>
       <div class="summary summary-four">

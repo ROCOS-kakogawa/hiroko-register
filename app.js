@@ -874,11 +874,9 @@ async function checkout() {
 
   const sales = getSales();
   sales.unshift(sale);
-  localStorage.setItem(storageKeys.sales, JSON.stringify(sales));
-  if (!(await appendSharedSale(sale))) {
-    scheduleSharedSave();
-  }
+  saveSales(sales);
   closeCompletedCart(customer.id);
+  await saveSharedNow();
   showToast(`${paymentLabels[sale.paymentMethod]}で会計しました`);
 }
 

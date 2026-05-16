@@ -41,6 +41,8 @@
           <div class="top-actions">
             <button class="secondary" id="settingsButton" type="button">商品設定</button>
             <button class="secondary" id="deliverySettingsButton" type="button">配達先登録</button>
+            <button class="secondary" id="settlementButton" type="button">日別精算</button>
+            <button class="secondary" id="paypayQrButton" type="button">PayPay QR</button>
             <button class="secondary" id="historyButton" type="button">売上</button>
             <button class="secondary" id="logoutButton" type="button" hidden>ログアウト</button>
           </div>
@@ -48,11 +50,18 @@
 
         <div class="customer-panel">
           <div class="customer-head">
-            <h2>販売先</h2>
-            <div class="add-customer">
-              <input id="newCustomerName" type="text" placeholder="お客様名">
-              <button class="secondary" id="addCustomerButton" type="button">追加</button>
+            <div>
+              <h2>対応中の販売先</h2>
+              <p class="helper-text">会計が終わると、この一覧から自動で消えます</p>
             </div>
+          </div>
+          <div class="staff-panel">
+            <label>
+              レジ担当
+              <select id="cashierSelect"></select>
+            </label>
+            <input id="newStaffName" type="text" placeholder="担当者名を追加">
+            <button class="secondary" id="addStaffButton" type="button">担当追加</button>
           </div>
           <div class="delivery-picker">
             <select id="deliverySelect" aria-label="会社・配達先・請求先を選ぶ"></select>
@@ -101,6 +110,10 @@
           <div class="cart-list" id="cartList">
             <p class="empty">商品を選んでください</p>
           </div>
+          <label class="memo-field">
+            備考
+            <textarea id="cartMemo" rows="3" placeholder="必要なメモを入力"></textarea>
+          </label>
         </div>
 
         <div class="panel payment-panel">
@@ -185,6 +198,53 @@
         <button class="checkout small-checkout" id="invoiceButton" type="button">請求書を作る</button>
         <button class="secondary" id="exportButton" type="button">CSV保存</button>
         <button class="danger" id="clearHistoryButton" type="button">売上を消す</button>
+      </div>
+    </dialog>
+
+    <dialog id="settlementDialog">
+      <div class="dialog-head">
+        <h2>日別精算</h2>
+        <button class="icon-button" id="closeSettlementButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="history-filter">
+        <label>
+          精算日
+          <input id="settlementDate" type="date">
+        </label>
+        <label>
+          精算担当
+          <select id="settlementStaffSelect"></select>
+        </label>
+        <button class="secondary" id="showTodaySettlementButton" type="button">今日</button>
+      </div>
+      <div class="summary settlement-summary">
+        <div><span>件数</span><strong id="settlementCount">0件</strong></div>
+        <div><span>総売上</span><strong id="settlementTotal">0円</strong></div>
+        <div><span>現金売上</span><strong id="settlementCash">0円</strong></div>
+        <div><span>PayPay</span><strong id="settlementPaypay">0円</strong></div>
+        <div><span>未収</span><strong id="settlementUnpaid">0円</strong></div>
+        <div><span>おつり合計</span><strong id="settlementChange">0円</strong></div>
+      </div>
+      <div class="summary cash-summary">
+        <div><span>釣銭準備金</span><strong id="settlementFloat">30,000円</strong></div>
+        <div><span>現金預かり</span><strong id="settlementCashPaid">0円</strong></div>
+        <div><span>レジ現金目安</span><strong id="settlementDrawerCash">0円</strong></div>
+        <div><span>抜く現金目安</span><strong id="settlementCashToRemove">0円</strong></div>
+      </div>
+      <div class="history-list" id="settlementList"></div>
+      <div class="dialog-actions">
+        <button class="secondary" id="settlementCsvButton" type="button">精算CSV保存</button>
+      </div>
+    </dialog>
+
+    <dialog id="paypayQrDialog">
+      <div class="dialog-head">
+        <h2>PayPay QR</h2>
+        <button class="icon-button" id="closePaypayQrButton" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="paypay-qr-box">
+        <img id="paypayQrImage" src="paypay-qr.png" alt="ROCO'S PayPay QRコード">
+        <p id="paypayQrFallback">QR画像がまだ登録されていません。paypay-qr.png を同じフォルダに入れてください。</p>
       </div>
     </dialog>
 

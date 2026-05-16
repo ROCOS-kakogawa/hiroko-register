@@ -23,12 +23,15 @@ const shopName = "美食美菜ROCO'S";
 const issuerAddress = "兵庫県加古川市野口町長砂95-36";
 const issuerTel = "TEL:079-498-1135";
 const bankAccount = "西兵庫信用金庫 加古川支店\n普通 0274670\n合同会社give comfort 代表社員 勝山 絋子";
+const cashFloat = 30000;
 const storageKeys = {
   products: "bento-register-products",
   sales: "bento-register-sales",
   customers: "bento-register-customers",
   deliveryNames: "bento-register-delivery-names",
-  deliveryRecords: "bento-register-delivery-records"
+  deliveryRecords: "bento-register-delivery-records",
+  staff: "bento-register-staff",
+  cashier: "bento-register-cashier"
 };
 
 const state = {
@@ -36,6 +39,8 @@ const state = {
   products: loadProducts(),
   customers: loadCustomers(),
   deliveryRecords: loadDeliveryRecords(),
+  staff: loadStaff(),
+  cashier: localStorage.getItem(storageKeys.cashier) || "",
   activeCustomerId: "",
   paymentMethod: "cash",
   sharedMode: location.protocol === "http:" || location.protocol === "https:",
@@ -53,8 +58,11 @@ const formatter = new Intl.NumberFormat("ja-JP", { style: "currency", currency: 
 const productGrid = document.querySelector("#productGrid");
 const customerTabs = document.querySelector("#customerTabs");
 const deliverySelect = document.querySelector("#deliverySelect");
+const cashierSelect = document.querySelector("#cashierSelect");
+const settlementStaffSelect = document.querySelector("#settlementStaffSelect");
 const activeCustomerName = document.querySelector("#activeCustomerName");
 const cartList = document.querySelector("#cartList");
+const cartMemo = document.querySelector("#cartMemo");
 const totalAmount = document.querySelector("#totalAmount");
 const paidAmount = document.querySelector("#paidAmount");
 const changeAmount = document.querySelector("#changeAmount");
@@ -78,6 +86,22 @@ const settingsDialog = document.querySelector("#settingsDialog");
 const settingsList = document.querySelector("#settingsList");
 const deliveryDialog = document.querySelector("#deliveryDialog");
 const deliveryList = document.querySelector("#deliveryList");
+const paypayQrDialog = document.querySelector("#paypayQrDialog");
+const paypayQrImage = document.querySelector("#paypayQrImage");
+const paypayQrFallback = document.querySelector("#paypayQrFallback");
+const settlementDialog = document.querySelector("#settlementDialog");
+const settlementDate = document.querySelector("#settlementDate");
+const settlementList = document.querySelector("#settlementList");
+const settlementCount = document.querySelector("#settlementCount");
+const settlementTotal = document.querySelector("#settlementTotal");
+const settlementCash = document.querySelector("#settlementCash");
+const settlementPaypay = document.querySelector("#settlementPaypay");
+const settlementUnpaid = document.querySelector("#settlementUnpaid");
+const settlementChange = document.querySelector("#settlementChange");
+const settlementFloat = document.querySelector("#settlementFloat");
+const settlementCashPaid = document.querySelector("#settlementCashPaid");
+const settlementDrawerCash = document.querySelector("#settlementDrawerCash");
+const settlementCashToRemove = document.querySelector("#settlementCashToRemove");
 const clock = document.querySelector("#clock");
 const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
@@ -137,7 +161,8 @@ function loadCustomers() {
         paidInput: customer.paidInput || "",
         companyName: customer.companyName || customer.name,
         billingName: customer.billingName || customer.name,
-        deliveryName: customer.deliveryName || customer.name
+        deliveryName: customer.deliveryName || customer.name,
+        memo: customer.memo || ""
       }));
     }
   } catch {
@@ -149,6 +174,7 @@ function loadCustomers() {
     companyName: "お客様1",
     billingName: "お客様1",
     deliveryName: "お客様1",
+    memo: "",
     cart: [],
     paidInput: ""
   }];
@@ -200,6 +226,16 @@ function loadDeliveryRecords() {
   return [{ id: "store-sale", company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }];
 }
 
+function loadStaff() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKeys.staff));
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+  } catch {
+    // Start with a simple default staff list.
+  }
+  return ["職員"];
+}
+
 function saveProducts() {
   localStorage.setItem(storageKeys.products, JSON.stringify(state.products));
   scheduleSharedSave();
@@ -212,6 +248,11 @@ function saveCustomers() {
 
 function saveDeliveryRecords() {
   localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
+  scheduleSharedSave();
+}
+
+function saveStaff() {
+  localStorage.setItem(storageKeys.staff, JSON.stringify(state.staff));
   scheduleSharedSave();
 }
 
@@ -251,6 +292,7 @@ function sharedSnapshot() {
     products: state.products,
     customers: state.customers,
     deliveryRecords: state.deliveryRecords,
+    staff: state.staff,
     sales: getSales()
   };
 }
@@ -267,7 +309,8 @@ function applySharedData(data) {
       paidInput: customer.paidInput || "",
       companyName: customer.companyName || customer.name,
       billingName: customer.billingName || customer.name,
-      deliveryName: customer.deliveryName || customer.name
+      deliveryName: customer.deliveryName || customer.name,
+      memo: customer.memo || ""
     }));
     if (!state.customers.some((customer) => customer.id === state.activeCustomerId)) {
       state.activeCustomerId = state.customers[0].id;
@@ -277,6 +320,10 @@ function applySharedData(data) {
   if (Array.isArray(data.deliveryRecords) && data.deliveryRecords.length > 0) {
     state.deliveryRecords = data.deliveryRecords;
     localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
+  }
+  if (Array.isArray(data.staff) && data.staff.length > 0) {
+    state.staff = data.staff;
+    localStorage.setItem(storageKeys.staff, JSON.stringify(state.staff));
   }
   if (Array.isArray(data.sales)) {
     localStorage.setItem(storageKeys.sales, JSON.stringify(data.sales));
@@ -401,6 +448,19 @@ function activeCustomer() {
   return state.customers.find((customer) => customer.id === state.activeCustomerId) || state.customers[0];
 }
 
+function defaultCustomer() {
+  return {
+    id: makeId("customer"),
+    name: "店頭販売",
+    companyName: "店頭販売",
+    billingName: "店頭販売",
+    deliveryName: "店頭販売",
+    memo: "",
+    cart: [],
+    paidInput: ""
+  };
+}
+
 function findOpenCustomerByName(name) {
   return state.customers.find((customer) => customer.name === name);
 }
@@ -412,6 +472,7 @@ function openCustomerCart(name, record = {}) {
     existing.companyName = record.company || existing.companyName || name;
     existing.billingName = record.billing || existing.billingName || name;
     existing.deliveryName = record.delivery || existing.deliveryName || name;
+    existing.memo = existing.memo || "";
   } else {
     const customer = {
       id: makeId("customer"),
@@ -419,6 +480,7 @@ function openCustomerCart(name, record = {}) {
       companyName: record.company || name,
       billingName: record.billing || name,
       deliveryName: record.delivery || name,
+      memo: "",
       cart: [],
       paidInput: ""
     };
@@ -470,6 +532,21 @@ function renderDeliveryNames() {
   });
   const deleteButton = document.querySelector("#deleteDeliveryButton");
   if (deleteButton) deleteButton.disabled = deliverySelect.options.length === 0;
+}
+
+function renderStaffSelectors() {
+  const selected = state.cashier || state.staff[0] || "職員";
+  [cashierSelect, settlementStaffSelect].forEach((select) => {
+    if (!select) return;
+    select.innerHTML = "";
+    state.staff.forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      select.append(option);
+    });
+    select.value = state.staff.includes(selected) ? selected : state.staff[0];
+  });
 }
 
 function renderDeliverySettings() {
@@ -528,6 +605,7 @@ function renderProducts() {
 function renderCart() {
   const customer = activeCustomer();
   activeCustomerName.textContent = customer.name;
+  if (cartMemo) cartMemo.value = customer.memo || "";
   cartList.innerHTML = "";
 
   if (customer.cart.length === 0) {
@@ -593,6 +671,7 @@ function renderPaymentMethods() {
 
 function renderAll() {
   renderDeliveryNames();
+  renderStaffSelectors();
   renderCustomers();
   renderCart();
   renderPaymentMethods();
@@ -664,6 +743,17 @@ function clearActiveCart() {
   const customer = activeCustomer();
   customer.cart = [];
   customer.paidInput = "";
+  customer.memo = "";
+  saveCustomers();
+  renderAll();
+}
+
+function closeCompletedCart(customerId) {
+  state.customers = state.customers.filter((customer) => customer.id !== customerId);
+  if (state.customers.length === 0) {
+    state.customers.push(defaultCustomer());
+  }
+  state.activeCustomerId = state.customers[0].id;
   saveCustomers();
   renderAll();
 }
@@ -687,6 +777,8 @@ async function checkout() {
     companyName: customer.companyName || customer.name,
     billingName: customer.billingName || customer.name,
     deliveryName: customer.deliveryName || customer.name,
+    memo: customer.memo || "",
+    cashierName: state.cashier || cashierSelect.value || "職員",
     paymentMethod: state.paymentMethod,
     total,
     paid,
@@ -700,7 +792,7 @@ async function checkout() {
   if (!(await appendSharedSale(sale))) {
     scheduleSharedSave();
   }
-  clearActiveCart();
+  closeCompletedCart(customer.id);
   showToast(`${paymentLabels[sale.paymentMethod]}で会計しました`);
 }
 
@@ -725,6 +817,13 @@ function monthValue(date = new Date()) {
   return `${year}-${month}`;
 }
 
+function dateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function saleMonthValue(sale) {
   const date = new Date(sale.at);
   return monthValue(date);
@@ -739,6 +838,11 @@ function nextMonthEndText(selectedMonth) {
 function selectedHistorySales() {
   const selectedMonth = historyMonth.value || monthValue();
   return getSales().filter((sale) => saleMonthValue(sale) === selectedMonth);
+}
+
+function selectedSettlementSales() {
+  const selectedDate = settlementDate.value || dateValue();
+  return getSales().filter((sale) => dateValue(new Date(sale.at)) === selectedDate);
 }
 
 function billingKeyForSale(sale) {
@@ -874,7 +978,8 @@ function renderHistory() {
     row.innerHTML = `
       <strong>${new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}　${escapeHtml(company)}　${yen(sale.total)}</strong>
       <span>配達先: ${escapeHtml(delivery)} / 請求先: ${escapeHtml(billing)}</span>
-      <span>${paymentLabels[sale.paymentMethod || "cash"]} / ${escapeHtml(itemNames)}</span>
+      <span>${paymentLabels[sale.paymentMethod || "cash"]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
+      ${sale.memo ? `<span>備考: ${escapeHtml(sale.memo)}</span>` : ""}
       <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
       <button class="secondary receipt-button" type="button">領収書</button>
     `;
@@ -909,6 +1014,78 @@ function renderHistory() {
     row.querySelector("button").addEventListener("click", () => createInvoiceForGroup(group));
     deliveryBillingList.append(row);
   });
+}
+
+function renderSettlement() {
+  if (!settlementDate.value) settlementDate.value = dateValue();
+  const sales = selectedSettlementSales();
+  const total = sales.reduce((sum, sale) => sum + sale.total, 0);
+  const cashSales = sales.filter((sale) => (sale.paymentMethod || "cash") === "cash");
+  const cash = cashSales.reduce((sum, sale) => sum + sale.total, 0);
+  const paypay = sales.filter((sale) => sale.paymentMethod === "paypay").reduce((sum, sale) => sum + sale.total, 0);
+  const unpaid = sales.filter((sale) => sale.paymentMethod === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
+  const change = cashSales.reduce((sum, sale) => sum + (sale.change || 0), 0);
+  const cashPaid = cashSales.reduce((sum, sale) => sum + salePaidAmount(sale), 0);
+  const cashSalesNet = cashPaid - change;
+  const drawerCash = cashFloat + cashSalesNet;
+  const cashToRemove = Math.max(drawerCash - cashFloat, 0);
+
+  settlementCount.textContent = `${sales.length}件`;
+  settlementTotal.textContent = yen(total);
+  settlementCash.textContent = yen(cash);
+  settlementPaypay.textContent = yen(paypay);
+  settlementUnpaid.textContent = yen(unpaid);
+  settlementChange.textContent = yen(change);
+  settlementFloat.textContent = yen(cashFloat);
+  settlementCashPaid.textContent = yen(cashPaid);
+  settlementDrawerCash.textContent = yen(drawerCash);
+  settlementCashToRemove.textContent = yen(cashToRemove);
+
+  settlementList.innerHTML = "";
+  if (sales.length === 0) {
+    settlementList.innerHTML = '<p class="empty">この日の売上はまだありません</p>';
+    return;
+  }
+
+  sales.forEach((sale) => {
+    const itemNames = sale.items.map((item) => `${item.name}×${item.qty}`).join("、");
+    const row = document.createElement("div");
+    row.className = `history-item ${sale.paymentMethod === "unpaid" ? "unpaid-item" : ""}`;
+    row.innerHTML = `
+      <strong>${new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}　${escapeHtml(sale.companyName || sale.customerName || "お客様")}　${yen(sale.total)}</strong>
+      <span>${paymentLabels[sale.paymentMethod || "cash"]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
+      <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
+    `;
+    settlementList.append(row);
+  });
+}
+
+function exportSettlementCsv() {
+  const rows = [["日時", "会社", "配達先", "請求先", "支払い", "担当", "精算担当", "合計", "預かり", "おつり", "備考"]];
+  const settlementStaff = settlementStaffSelect.value || state.cashier || "";
+  selectedSettlementSales().forEach((sale) => {
+    rows.push([
+      new Date(sale.at).toLocaleString("ja-JP"),
+      sale.companyName || sale.customerName || "お客様",
+      sale.deliveryName || sale.customerName || "お客様",
+      sale.billingName || sale.customerName || "お客様",
+      paymentLabels[sale.paymentMethod || "cash"],
+      sale.cashierName || "",
+      settlementStaff,
+      sale.total,
+      salePaidAmount(sale),
+      sale.change || 0,
+      sale.memo || ""
+    ]);
+  });
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bento-settlement-${settlementDate.value || dateValue()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function createReceipt(sale) {
@@ -1194,7 +1371,7 @@ function applySettingsFromRows() {
 }
 
 function exportCsv() {
-  const rows = [["日時", "会社", "配達先", "請求先", "表示名", "支払い", "商品", "数量", "単価", "小計", "合計", "預かり", "おつり"]];
+  const rows = [["日時", "会社", "配達先", "請求先", "表示名", "支払い", "担当", "商品", "数量", "単価", "小計", "合計", "預かり", "おつり", "備考"]];
   selectedHistorySales().forEach((sale) => {
     sale.items.forEach((item) => {
       rows.push([
@@ -1204,13 +1381,15 @@ function exportCsv() {
         sale.billingName || sale.customerName || "お客様",
         sale.customerName || "お客様",
         paymentLabels[sale.paymentMethod || "cash"],
+        sale.cashierName || "",
         item.name,
         item.qty,
         item.price,
         item.price * item.qty,
         sale.total,
         salePaidAmount(sale),
-        sale.change || 0
+        sale.change || 0,
+        sale.memo || ""
       ]);
     });
   });
@@ -1251,6 +1430,36 @@ document.querySelectorAll(".method").forEach((button) => {
   });
 });
 
+cashierSelect.addEventListener("change", () => {
+  state.cashier = cashierSelect.value;
+  localStorage.setItem(storageKeys.cashier, state.cashier);
+  if (settlementStaffSelect) settlementStaffSelect.value = state.cashier;
+});
+
+settlementStaffSelect.addEventListener("change", () => {
+  state.cashier = settlementStaffSelect.value;
+  localStorage.setItem(storageKeys.cashier, state.cashier);
+  if (cashierSelect) cashierSelect.value = state.cashier;
+});
+
+document.querySelector("#addStaffButton").addEventListener("click", () => {
+  const input = document.querySelector("#newStaffName");
+  const name = input.value.trim();
+  if (!name) {
+    showToast("担当者名を入れてください");
+    return;
+  }
+  if (!state.staff.includes(name)) {
+    state.staff.push(name);
+    saveStaff();
+  }
+  state.cashier = name;
+  localStorage.setItem(storageKeys.cashier, state.cashier);
+  input.value = "";
+  renderStaffSelectors();
+  showToast("担当者を追加しました");
+});
+
 document.querySelectorAll("[data-cash]").forEach((button) => {
   button.addEventListener("click", () => {
     activeCustomer().paidInput = String(paidValue() + Number(button.dataset.cash));
@@ -1287,18 +1496,18 @@ document.querySelector("#clearPaidButton").addEventListener("click", () => {
   renderTotals();
 });
 
-document.querySelector("#addCustomerButton").addEventListener("click", () => {
-  const input = document.querySelector("#newCustomerName");
-  const name = input.value.trim() || `お客様${state.customers.length + 1}`;
-  openCustomerCart(name);
-  input.value = "";
-});
-
 deliverySelect.addEventListener("change", () => {
   const record = state.deliveryRecords.find((item) => item.id === deliverySelect.value);
   if (!record) return;
   openCustomerCart(deliveryLabel(record), record);
 });
+
+if (cartMemo) {
+  cartMemo.addEventListener("input", () => {
+    activeCustomer().memo = cartMemo.value;
+    saveCustomers();
+  });
+}
 
 document.querySelector("#storeSaleButton").addEventListener("click", () => {
   openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" });
@@ -1383,6 +1592,20 @@ document.querySelector("#historyButton").addEventListener("click", async () => {
   historyDialog.showModal();
 });
 
+document.querySelector("#paypayQrButton").addEventListener("click", () => {
+  paypayQrImage.hidden = false;
+  paypayQrFallback.hidden = true;
+  paypayQrImage.src = `paypay-qr.png?ts=${Date.now()}`;
+  paypayQrDialog.showModal();
+});
+
+document.querySelector("#settlementButton").addEventListener("click", async () => {
+  await syncFromShared();
+  settlementDate.value = settlementDate.value || dateValue();
+  renderSettlement();
+  settlementDialog.showModal();
+});
+
 document.querySelector("#settingsButton").addEventListener("click", () => {
   renderSettings();
   settingsDialog.showModal();
@@ -1396,8 +1619,20 @@ document.querySelector("#deliverySettingsButton").addEventListener("click", () =
 document.querySelector("#closeHistoryButton").addEventListener("click", () => historyDialog.close());
 document.querySelector("#closeSettingsButton").addEventListener("click", () => settingsDialog.close());
 document.querySelector("#closeDeliveryButton").addEventListener("click", () => deliveryDialog.close());
+document.querySelector("#closePaypayQrButton").addEventListener("click", () => paypayQrDialog.close());
+document.querySelector("#closeSettlementButton").addEventListener("click", () => settlementDialog.close());
 document.querySelector("#exportButton").addEventListener("click", exportCsv);
 document.querySelector("#invoiceButton").addEventListener("click", createInvoices);
+document.querySelector("#settlementCsvButton").addEventListener("click", exportSettlementCsv);
+settlementDate.addEventListener("change", async () => {
+  await syncFromShared();
+  renderSettlement();
+});
+document.querySelector("#showTodaySettlementButton").addEventListener("click", async () => {
+  await syncFromShared();
+  settlementDate.value = dateValue();
+  renderSettlement();
+});
 historyMonth.addEventListener("change", async () => {
   await syncFromShared();
   renderHistory();
@@ -1467,6 +1702,17 @@ if (logoutButton) {
     logoutButton.hidden = true;
     if (loginScreen) loginScreen.hidden = false;
     if (loginMessage) loginMessage.textContent = "ログアウトしました";
+  });
+}
+
+if (paypayQrImage) {
+  paypayQrImage.addEventListener("error", () => {
+    paypayQrImage.hidden = true;
+    paypayQrFallback.hidden = false;
+  });
+  paypayQrImage.addEventListener("load", () => {
+    paypayQrImage.hidden = false;
+    paypayQrFallback.hidden = true;
   });
 }
 

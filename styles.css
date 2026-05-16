@@ -128,8 +128,9 @@ button:disabled {
 }
 
 .top-actions {
-  display: flex;
+  display: grid;
   gap: 10px;
+  grid-template-columns: repeat(3, minmax(112px, 1fr));
 }
 
 h1,
@@ -162,19 +163,26 @@ h2 {
 
 .customer-panel {
   background: var(--paper);
-  border: 1px solid var(--line);
+  border: 2px solid #cfd8d1;
   border-radius: 8px;
   box-shadow: var(--shadow);
   margin-bottom: 14px;
-  padding: 14px;
+  padding: 16px;
 }
 
 .customer-head {
-  align-items: center;
+  align-items: end;
   display: flex;
   gap: 12px;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.helper-text {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  margin-top: 4px;
 }
 
 .add-customer {
@@ -217,6 +225,37 @@ h2 {
   margin-bottom: 14px;
 }
 
+.staff-panel {
+  background: #f4f6f1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 96px;
+  margin-bottom: 10px;
+  padding: 10px;
+}
+
+.staff-panel label {
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.staff-panel select,
+.staff-panel input {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
 .customer-edit {
   grid-template-columns: minmax(160px, 1fr) 110px 78px;
 }
@@ -245,14 +284,15 @@ h2 {
 .customer-tab {
   background: #e7eee9;
   border: 2px solid transparent;
-  min-height: 64px;
-  padding: 8px 10px;
+  min-height: 72px;
+  padding: 10px 12px;
   text-align: left;
 }
 
 .customer-tab.active {
-  background: #fff6d8;
-  border-color: var(--warm);
+  background: #e8f6f2;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .customer-tab span,
@@ -262,6 +302,7 @@ h2 {
 
 .customer-tab strong {
   color: var(--accent-dark);
+  font-size: 18px;
   margin-top: 3px;
 }
 
@@ -344,7 +385,14 @@ h2 {
 }
 
 .active-customer-panel strong {
-  font-size: 24px;
+  color: var(--accent-dark);
+  font-size: 28px;
+  text-align: right;
+}
+
+.active-customer-panel {
+  border-color: var(--accent);
+  border-width: 2px;
 }
 
 .total-panel strong,
@@ -371,6 +419,26 @@ h2 {
   display: grid;
   gap: 10px;
   margin-top: 12px;
+}
+
+.memo-field {
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.memo-field textarea {
+  background: #f8faf7;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  min-height: 72px;
+  padding: 10px;
+  resize: vertical;
 }
 
 .empty {
@@ -483,6 +551,10 @@ h2 {
   padding: 16px;
 }
 
+.checkout:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(177, 125, 24, 0.26);
+}
+
 dialog {
   border: 0;
   border-radius: 8px;
@@ -541,6 +613,15 @@ dialog::backdrop {
   grid-template-columns: repeat(5, 1fr);
 }
 
+.settlement-summary {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.cash-summary {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 0;
+}
+
 .summary div {
   background: #f4f6f1;
   border-radius: 8px;
@@ -565,6 +646,33 @@ dialog::backdrop {
 .billing-list,
 .delivery-list {
   max-height: 220px;
+}
+
+.paypay-qr-box {
+  align-items: center;
+  display: grid;
+  justify-items: center;
+  min-height: 320px;
+  padding: 18px;
+}
+
+.paypay-qr-box img {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: min(70vh, 520px);
+  max-width: min(86vw, 520px);
+  padding: 12px;
+  width: 100%;
+}
+
+.paypay-qr-box p {
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .history-item {
@@ -721,12 +829,18 @@ dialog::backdrop {
   .customer-edit,
   .custom-product,
   .delivery-picker,
-  .delivery-manage {
+  .delivery-manage,
+  .staff-panel {
     grid-template-columns: 1fr;
   }
 
   .summary-four {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .settlement-summary,
+  .cash-summary {
+    grid-template-columns: 1fr;
   }
 
   .history-filter {
@@ -739,7 +853,7 @@ dialog::backdrop {
   }
 
   .top-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .settings-row,

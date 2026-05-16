@@ -437,6 +437,13 @@ h2 {
   min-height: 42px;
 }
 
+.cancel-cart-button {
+  background: #fff0ee;
+  border-color: #e1aaa5;
+  color: var(--danger);
+  min-height: 42px;
+}
+
 .text-button {
   background: transparent;
   color: var(--accent-dark);
@@ -894,6 +901,10 @@ dialog::backdrop {
   .cart-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .cart-actions .text-button {
+    grid-column: 1 / -1;
   }
 
   .topbar {

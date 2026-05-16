@@ -805,6 +805,23 @@ function clearActiveCart() {
   renderAll();
 }
 
+function cancelActiveCart() {
+  const customer = activeCustomer();
+  if (!saleTargetSelected(customer) && customer.cart.length === 0 && !customer.paidInput && !customer.memo) {
+    showToast("取り消す販売先がありません");
+    return;
+  }
+  rememberUndo();
+  state.customers = state.customers.filter((item) => item.id !== customer.id);
+  if (state.customers.length === 0) {
+    state.customers.push(defaultCustomer());
+  }
+  state.activeCustomerId = state.customers[0].id;
+  saveCustomers();
+  renderAll();
+  showToast("販売先を取り消しました");
+}
+
 function closeCompletedCart(customerId) {
   state.customers = state.customers.filter((customer) => customer.id !== customerId);
   if (state.customers.length === 0) {
@@ -1672,6 +1689,7 @@ document.querySelector("#customItemPrice").addEventListener("keydown", (event) =
 
 document.querySelector("#clearButton").addEventListener("click", clearActiveCart);
 document.querySelector("#undoButton").addEventListener("click", undoLastAction);
+document.querySelector("#cancelCartButton").addEventListener("click", cancelActiveCart);
 checkoutButton.addEventListener("click", checkout);
 
 document.querySelector("#historyButton").addEventListener("click", async () => {

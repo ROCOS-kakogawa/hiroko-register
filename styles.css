@@ -861,11 +861,24 @@ dialog::backdrop {
 
   .topbar {
     align-items: stretch;
+    flex-direction: column;
     gap: 10px;
   }
 
   .top-actions {
-    grid-template-columns: 1fr;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .top-actions .secondary {
+    font-size: 13px;
+    min-height: 44px;
+    padding: 8px 6px;
+  }
+
+  .sales-action {
+    font-size: 15px;
+    min-height: 48px;
   }
 
   .settings-row,

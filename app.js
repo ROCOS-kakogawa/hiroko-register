@@ -141,6 +141,18 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizePaymentMethod(value) {
+  const method = String(value || "cash").toLowerCase();
+  if (method.includes("pay")) return "paypay";
+  if (method.includes("unpaid") || method.includes("未収")) return "unpaid";
+  return "cash";
+}
+
+function selectedPaymentMethod() {
+  const activeButton = document.querySelector(".method.active");
+  return normalizePaymentMethod(activeButton ? activeButton.dataset.payment : state.paymentMethod);
+}
+
 function rememberUndo() {
   undoSnapshot = {
     customers: clone(state.customers),
@@ -291,6 +303,22 @@ function getSales() {
 function saveSales(sales) {
   localStorage.setItem(storageKeys.sales, JSON.stringify(sales));
   scheduleSharedSave();
+}
+
+async function deleteSaleById(saleId) {
+  const sales = getSales();
+  const sale = sales.find((item) => item.id === saleId);
+  if (!sale) {
+    showToast("削除する売上が見つかりません");
+    return;
+  }
+  const time = new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  const name = sale.companyName || sale.customerName || "お客様";
+  if (!confirm(`${time} ${name} ${yen(sale.total)} の売上を削除しますか？`)) return;
+  saveSales(sales.filter((item) => item.id !== saleId));
+  await saveSharedNow();
+  renderHistory();
+  showToast("1件の売上を削除しました");
 }
 
 async function appendSharedSale(sale) {
@@ -851,9 +879,10 @@ function showToast(message) {
 
 async function checkout() {
   if (!requireSaleTarget()) return;
+  state.paymentMethod = selectedPaymentMethod();
   const customer = activeCustomer();
   const total = Math.max(currentTotal(), 0);
-  const paid = state.paymentMethod === "cash" || state.paymentMethod === "paypay" ? paidValueForSale(total) : 0;
+  const paid = state.paymentMethod === "cash" || state.paymentMethod === "paypay" ? paidValueForSale(total, state.paymentMethod) : 0;
   if (total <= 0 || (state.paymentMethod === "cash" && paid < total)) return;
 
   const sale = {
@@ -880,14 +909,15 @@ async function checkout() {
   showToast(`${paymentLabels[sale.paymentMethod]}で会計しました`);
 }
 
-function paidValueForSale(total) {
-  if (state.paymentMethod === "cash") return paidValue();
-  if (state.paymentMethod === "paypay") return total;
+function paidValueForSale(total, method = state.paymentMethod) {
+  const paymentMethod = normalizePaymentMethod(method);
+  if (paymentMethod === "cash") return paidValue();
+  if (paymentMethod === "paypay") return total;
   return 0;
 }
 
 function salePaidAmount(sale) {
-  if (sale.paymentMethod === "unpaid") return 0;
+  if (normalizePaymentMethod(sale.paymentMethod) === "unpaid") return 0;
   return sale.paid ?? sale.total;
 }
 
@@ -957,9 +987,10 @@ function groupSalesByBilling(sales) {
     current.total += sale.total;
     current.count += 1;
     current.sales.push(sale);
-    if ((sale.paymentMethod || "cash") === "cash") current.cash += sale.total;
-    if (sale.paymentMethod === "unpaid") current.unpaid += sale.total;
-    if (sale.paymentMethod === "paypay") current.paypay += sale.total;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    if (method === "cash") current.cash += sale.total;
+    if (method === "unpaid") current.unpaid += sale.total;
+    if (method === "paypay") current.paypay += sale.total;
     groups.set(key, current);
   });
   return [...groups.values()].sort((a, b) => `${a.company}${a.billing}`.localeCompare(`${b.company}${b.billing}`, "ja"));
@@ -986,9 +1017,10 @@ function groupSalesByDelivery(sales) {
     current.total += sale.total;
     current.count += 1;
     current.sales.push(sale);
-    if ((sale.paymentMethod || "cash") === "cash") current.cash += sale.total;
-    if (sale.paymentMethod === "unpaid") current.unpaid += sale.total;
-    if (sale.paymentMethod === "paypay") current.paypay += sale.total;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    if (method === "cash") current.cash += sale.total;
+    if (method === "unpaid") current.unpaid += sale.total;
+    if (method === "paypay") current.paypay += sale.total;
     groups.set(key, current);
   });
   return [...groups.values()].sort((a, b) => `${a.company}${a.delivery}${a.billing}`.localeCompare(`${b.company}${b.delivery}${b.billing}`, "ja"));
@@ -1011,9 +1043,10 @@ function groupSalesByCompany(sales) {
     current.total += sale.total;
     current.count += 1;
     current.sales.push(sale);
-    if ((sale.paymentMethod || "cash") === "cash") current.cash += sale.total;
-    if (sale.paymentMethod === "unpaid") current.unpaid += sale.total;
-    if (sale.paymentMethod === "paypay") current.paypay += sale.total;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    if (method === "cash") current.cash += sale.total;
+    if (method === "unpaid") current.unpaid += sale.total;
+    if (method === "paypay") current.paypay += sale.total;
     groups.set(company, current);
   });
   return [...groups.values()].sort((a, b) => a.company.localeCompare(b.company, "ja"));
@@ -1023,9 +1056,9 @@ function renderHistory() {
   if (!historyMonth.value) historyMonth.value = monthValue();
   const sales = selectedHistorySales();
   const total = sales.reduce((sum, sale) => sum + sale.total, 0);
-  const cash = sales.filter((sale) => (sale.paymentMethod || "cash") === "cash").reduce((sum, sale) => sum + sale.total, 0);
-  const paypay = sales.filter((sale) => sale.paymentMethod === "paypay").reduce((sum, sale) => sum + sale.total, 0);
-  const unpaid = sales.filter((sale) => sale.paymentMethod === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
+  const cash = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "cash").reduce((sum, sale) => sum + sale.total, 0);
+  const paypay = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "paypay").reduce((sum, sale) => sum + sale.total, 0);
+  const unpaid = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
 
   saleCount.textContent = `${sales.length}件`;
   saleTotal.textContent = yen(total);
@@ -1058,19 +1091,24 @@ function renderHistory() {
   sales.forEach((sale) => {
     const itemNames = sale.items.map((item) => `${item.name}×${item.qty}`).join("、");
     const row = document.createElement("div");
-    row.className = `history-item ${sale.paymentMethod === "unpaid" ? "unpaid-item" : ""}`;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    row.className = `history-item ${method === "unpaid" ? "unpaid-item" : ""}`;
     const company = sale.companyName || sale.customerName || "お客様";
     const billing = sale.billingName || sale.customerName || "お客様";
     const delivery = sale.deliveryName || sale.customerName || "お客様";
     row.innerHTML = `
       <strong>${new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}　${escapeHtml(company)}　${yen(sale.total)}</strong>
       <span>配達先: ${escapeHtml(delivery)} / 請求先: ${escapeHtml(billing)}</span>
-      <span>${paymentLabels[sale.paymentMethod || "cash"]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
+      <span>${paymentLabels[method]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
       ${sale.memo ? `<span>備考: ${escapeHtml(sale.memo)}</span>` : ""}
       <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
-      <button class="secondary receipt-button" type="button">領収書</button>
+      <div class="history-actions">
+        <button class="secondary receipt-button" type="button">領収書</button>
+        <button class="danger compact-danger delete-sale-button" type="button">この売上を削除</button>
+      </div>
     `;
     row.querySelector(".receipt-button").addEventListener("click", () => createReceipt(sale));
+    row.querySelector(".delete-sale-button").addEventListener("click", () => deleteSaleById(sale.id));
     historyList.append(row);
   });
 
@@ -1107,10 +1145,10 @@ function renderSettlement() {
   if (!settlementDate.value) settlementDate.value = dateValue();
   const sales = selectedSettlementSales();
   const total = sales.reduce((sum, sale) => sum + sale.total, 0);
-  const cashSales = sales.filter((sale) => (sale.paymentMethod || "cash") === "cash");
+  const cashSales = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "cash");
   const cash = cashSales.reduce((sum, sale) => sum + sale.total, 0);
-  const paypay = sales.filter((sale) => sale.paymentMethod === "paypay").reduce((sum, sale) => sum + sale.total, 0);
-  const unpaid = sales.filter((sale) => sale.paymentMethod === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
+  const paypay = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "paypay").reduce((sum, sale) => sum + sale.total, 0);
+  const unpaid = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
   const change = cashSales.reduce((sum, sale) => sum + (sale.change || 0), 0);
   const cashPaid = cashSales.reduce((sum, sale) => sum + salePaidAmount(sale), 0);
   const cashSalesNet = cashPaid - change;
@@ -1137,10 +1175,11 @@ function renderSettlement() {
   sales.forEach((sale) => {
     const itemNames = sale.items.map((item) => `${item.name}×${item.qty}`).join("、");
     const row = document.createElement("div");
-    row.className = `history-item ${sale.paymentMethod === "unpaid" ? "unpaid-item" : ""}`;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    row.className = `history-item ${method === "unpaid" ? "unpaid-item" : ""}`;
     row.innerHTML = `
       <strong>${new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}　${escapeHtml(sale.companyName || sale.customerName || "お客様")}　${yen(sale.total)}</strong>
-      <span>${paymentLabels[sale.paymentMethod || "cash"]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
+      <span>${paymentLabels[method]} / 担当: ${escapeHtml(sale.cashierName || "未設定")} / ${escapeHtml(itemNames)}</span>
       <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
     `;
     settlementList.append(row);
@@ -1156,7 +1195,7 @@ function exportSettlementCsv() {
       sale.companyName || sale.customerName || "お客様",
       sale.deliveryName || sale.customerName || "お客様",
       sale.billingName || sale.customerName || "お客様",
-      paymentLabels[sale.paymentMethod || "cash"],
+      paymentLabels[normalizePaymentMethod(sale.paymentMethod)],
       sale.cashierName || "",
       settlementStaff,
       sale.total,
@@ -1226,7 +1265,7 @@ function createReceipt(sale) {
           <h1>領収書</h1>
           ${recipientHtml}
           <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
-          <p>${new Date(sale.at).toLocaleDateString("ja-JP")}　${paymentLabels[sale.paymentMethod || "cash"]}</p>
+          <p>${new Date(sale.at).toLocaleDateString("ja-JP")}　${paymentLabels[normalizePaymentMethod(sale.paymentMethod)]}</p>
           <div class="amount">
             <span>領収金額</span>
             <strong>${yen(sale.total)}</strong>
@@ -1467,7 +1506,7 @@ function exportCsv() {
         sale.deliveryName || sale.customerName || "お客様",
         sale.billingName || sale.customerName || "お客様",
         sale.customerName || "お客様",
-        paymentLabels[sale.paymentMethod || "cash"],
+        paymentLabels[normalizePaymentMethod(sale.paymentMethod)],
         sale.cashierName || "",
         item.name,
         item.qty,

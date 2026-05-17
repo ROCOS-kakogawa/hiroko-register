@@ -730,6 +730,21 @@ dialog::backdrop {
   padding: 8px 14px;
 }
 
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.history-actions .receipt-button {
+  margin-top: 0;
+}
+
+.delete-sale-button {
+  min-height: 42px;
+}
+
 .billing-item {
   background: #f4f6f1;
   border: 1px solid var(--line);

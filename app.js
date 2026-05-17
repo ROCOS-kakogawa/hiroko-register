@@ -31,7 +31,8 @@ const storageKeys = {
   deliveryNames: "bento-register-delivery-names",
   deliveryRecords: "bento-register-delivery-records",
   staff: "bento-register-staff",
-  cashier: "bento-register-cashier"
+  cashier: "bento-register-cashier",
+  deletedSales: "bento-register-deleted-sales"
 };
 
 const state = {
@@ -41,6 +42,7 @@ const state = {
   deliveryRecords: loadDeliveryRecords(),
   staff: loadStaff(),
   cashier: localStorage.getItem(storageKeys.cashier) || "",
+  deletedSaleIds: loadDeletedSaleIds(),
   activeCustomerId: "",
   paymentMethod: "cash",
   sharedMode: location.protocol === "http:" || location.protocol === "https:",
@@ -49,6 +51,7 @@ const state = {
   cloudMode: false
 };
 let undoSnapshot = null;
+let historyPaymentFilter = "all";
 if (!state.customers.length) {
   state.customers = loadCustomers();
 }
@@ -272,6 +275,15 @@ function loadStaff() {
   return ["職員"];
 }
 
+function loadDeletedSaleIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKeys.deletedSales) || "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
 function saveProducts() {
   localStorage.setItem(storageKeys.products, JSON.stringify(state.products));
   scheduleSharedSave();
@@ -292,9 +304,32 @@ function saveStaff() {
   scheduleSharedSave();
 }
 
+function saleStableId(sale, index = 0) {
+  if (sale.id) return sale.id;
+  const itemText = Array.isArray(sale.items)
+    ? sale.items.map((item) => `${item.name}:${item.price}:${item.qty}`).join("|")
+    : "";
+  return `sale-${sale.at || "no-date"}-${sale.total || 0}-${sale.paymentMethod || "cash"}-${index}-${itemText}`;
+}
+
+function normalizeSales(sales) {
+  return (Array.isArray(sales) ? sales : [])
+    .map((sale, index) => ({ ...sale, id: saleStableId(sale, index) }))
+    .filter((sale) => !state.deletedSaleIds.includes(sale.id));
+}
+
+function saveDeletedSaleIds() {
+  localStorage.setItem(storageKeys.deletedSales, JSON.stringify(state.deletedSaleIds));
+}
+
 function getSales() {
   try {
-    return JSON.parse(localStorage.getItem(storageKeys.sales) || "[]");
+    const raw = JSON.parse(localStorage.getItem(storageKeys.sales) || "[]");
+    const sales = normalizeSales(raw);
+    if (JSON.stringify(raw) !== JSON.stringify(sales)) {
+      localStorage.setItem(storageKeys.sales, JSON.stringify(sales));
+    }
+    return sales;
   } catch {
     return [];
   }
@@ -315,10 +350,14 @@ async function deleteSaleById(saleId) {
   const time = new Date(sale.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
   const name = sale.companyName || sale.customerName || "お客様";
   if (!confirm(`${time} ${name} ${yen(sale.total)} の売上を削除しますか？`)) return;
+  if (!state.deletedSaleIds.includes(saleId)) {
+    state.deletedSaleIds.push(saleId);
+    saveDeletedSaleIds();
+  }
   saveSales(sales.filter((item) => item.id !== saleId));
-  await saveSharedNow();
+  const saved = await saveSharedNow();
   renderHistory();
-  showToast("1件の売上を削除しました");
+  showToast(saved ? "1件の売上を削除しました" : "この端末では削除しました。通信後にもう一度確認してください");
 }
 
 async function appendSharedSale(sale) {
@@ -345,6 +384,7 @@ function sharedSnapshot() {
     customers: state.customers,
     deliveryRecords: state.deliveryRecords,
     staff: state.staff,
+    deletedSaleIds: state.deletedSaleIds,
     sales: getSales()
   };
 }
@@ -377,8 +417,12 @@ function applySharedData(data) {
     state.staff = data.staff;
     localStorage.setItem(storageKeys.staff, JSON.stringify(state.staff));
   }
+  if (Array.isArray(data.deletedSaleIds)) {
+    state.deletedSaleIds = [...new Set([...state.deletedSaleIds, ...data.deletedSaleIds])];
+    saveDeletedSaleIds();
+  }
   if (Array.isArray(data.sales)) {
-    localStorage.setItem(storageKeys.sales, JSON.stringify(data.sales));
+    localStorage.setItem(storageKeys.sales, JSON.stringify(normalizeSales(data.sales)));
   }
 }
 
@@ -399,18 +443,19 @@ async function syncFromShared() {
 
 async function saveSharedNow() {
   if (state.cloudMode) {
-    await saveCloudNow();
-    return;
+    return await saveCloudNow();
   }
-  if (!state.sharedMode) return;
+  if (!state.sharedMode) return true;
   try {
-    await fetch("api/state", {
+    const response = await fetch("api/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sharedSnapshot())
     });
+    return response.ok;
   } catch {
     // Keep local data if the shared server is unavailable.
+    return false;
   }
 }
 
@@ -482,17 +527,19 @@ async function syncFromCloud() {
 }
 
 async function saveCloudNow() {
-  if (!state.cloudMode || !state.cloudClient) return;
+  if (!state.cloudMode || !state.cloudClient) return true;
   try {
-    await state.cloudClient
+    const { error } = await state.cloudClient
       .from("register_state")
       .upsert({
         id: "main",
         data: sharedSnapshot(),
         updated_at: new Date().toISOString()
       });
+    return !error;
   } catch {
     // Keep local data if cloud save fails.
+    return false;
   }
 }
 
@@ -756,6 +803,24 @@ function renderPaymentMethods() {
   });
 }
 
+function setHistoryView(view) {
+  document.querySelectorAll(".history-view-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.historyView === view);
+  });
+  document.querySelectorAll(".history-view").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.historyPanel === view);
+  });
+}
+
+function setHistoryPaymentFilter(filter) {
+  historyPaymentFilter = filter || "all";
+  document.querySelectorAll("[data-payment-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.paymentFilter === historyPaymentFilter);
+  });
+  setHistoryView("sales");
+  renderHistory();
+}
+
 function renderAll() {
   renderDeliveryNames();
   renderStaffSelectors();
@@ -950,11 +1015,15 @@ function nextMonthEndText(selectedMonth) {
 }
 
 function selectedHistorySales() {
+  let sales;
   if (historyDate && historyDate.value) {
-    return getSales().filter((sale) => dateValue(new Date(sale.at)) === historyDate.value);
+    sales = getSales().filter((sale) => dateValue(new Date(sale.at)) === historyDate.value);
+  } else {
+    const selectedMonth = historyMonth.value || monthValue();
+    sales = getSales().filter((sale) => saleMonthValue(sale) === selectedMonth);
   }
-  const selectedMonth = historyMonth.value || monthValue();
-  return getSales().filter((sale) => saleMonthValue(sale) === selectedMonth);
+  if (historyPaymentFilter === "all") return sales;
+  return sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === historyPaymentFilter);
 }
 
 function selectedSettlementSales() {
@@ -1055,10 +1124,14 @@ function groupSalesByCompany(sales) {
 function renderHistory() {
   if (!historyMonth.value) historyMonth.value = monthValue();
   const sales = selectedHistorySales();
+  const baseFilter = historyPaymentFilter;
+  historyPaymentFilter = "all";
+  const allSales = selectedHistorySales();
+  historyPaymentFilter = baseFilter;
   const total = sales.reduce((sum, sale) => sum + sale.total, 0);
-  const cash = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "cash").reduce((sum, sale) => sum + sale.total, 0);
-  const paypay = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "paypay").reduce((sum, sale) => sum + sale.total, 0);
-  const unpaid = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
+  const cash = allSales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "cash").reduce((sum, sale) => sum + sale.total, 0);
+  const paypay = allSales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "paypay").reduce((sum, sale) => sum + sale.total, 0);
+  const unpaid = allSales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "unpaid").reduce((sum, sale) => sum + sale.total, 0);
 
   saleCount.textContent = `${sales.length}件`;
   saleTotal.textContent = yen(total);
@@ -1082,9 +1155,13 @@ function renderHistory() {
       row.innerHTML = `
         <strong>${escapeHtml(group.company)}</strong>
         <span>${group.count}件　合計 ${yen(group.total)}　現金 ${yen(group.cash)}　未収 ${yen(group.unpaid)}　PayPay ${yen(group.paypay)}</span>
-        <button class="secondary receipt-button" type="button">この会社の請求書を作る</button>
+        <div class="history-actions">
+          <button class="secondary receipt-button invoice-group-button" type="button">請求書</button>
+          <button class="secondary receipt-button receipt-group-button" type="button">領収書</button>
+        </div>
       `;
-      row.querySelector("button").addEventListener("click", () => createInvoiceForGroup(group));
+      row.querySelector(".invoice-group-button").addEventListener("click", () => createInvoiceForGroup(group));
+      row.querySelector(".receipt-group-button").addEventListener("click", () => createReceiptForGroup(group));
       companyList.append(row);
     });
 
@@ -1104,7 +1181,7 @@ function renderHistory() {
       <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
       <div class="history-actions">
         <button class="secondary receipt-button" type="button">領収書</button>
-        <button class="danger compact-danger delete-sale-button" type="button">この売上を削除</button>
+        <button class="danger delete-sale-button" type="button">売上取消</button>
       </div>
     `;
     row.querySelector(".receipt-button").addEventListener("click", () => createReceipt(sale));
@@ -1120,9 +1197,13 @@ function renderHistory() {
       row.innerHTML = `
         <strong>${escapeHtml(groupTitle)}</strong>
         <span>${group.count}件　合計 ${yen(group.total)}　現金 ${yen(group.cash)}　未収 ${yen(group.unpaid)}　PayPay ${yen(group.paypay)}</span>
-        <button class="secondary receipt-button" type="button">この請求書を作る</button>
+        <div class="history-actions">
+          <button class="secondary receipt-button invoice-group-button" type="button">請求書</button>
+          <button class="secondary receipt-button receipt-group-button" type="button">領収書</button>
+        </div>
       `;
-      row.querySelector("button").addEventListener("click", () => createInvoiceForGroup(group));
+      row.querySelector(".invoice-group-button").addEventListener("click", () => createInvoiceForGroup(group));
+      row.querySelector(".receipt-group-button").addEventListener("click", () => createReceiptForGroup(group));
       billingList.append(row);
     });
 
@@ -1134,9 +1215,13 @@ function renderHistory() {
     row.innerHTML = `
       <strong>${escapeHtml(groupTitle)}</strong>
       <span>${group.count}件　合計 ${yen(group.total)}　現金 ${yen(group.cash)}　未収 ${yen(group.unpaid)}　PayPay ${yen(group.paypay)}</span>
-      <button class="secondary receipt-button" type="button">この配達先・請求先の請求書を作る</button>
+      <div class="history-actions">
+        <button class="secondary receipt-button invoice-group-button" type="button">請求書</button>
+        <button class="secondary receipt-button receipt-group-button" type="button">領収書</button>
+      </div>
     `;
-    row.querySelector("button").addEventListener("click", () => createInvoiceForGroup(group));
+    row.querySelector(".invoice-group-button").addEventListener("click", () => createInvoiceForGroup(group));
+    row.querySelector(".receipt-group-button").addEventListener("click", () => createReceiptForGroup(group));
     deliveryBillingList.append(row);
   });
 }
@@ -1288,8 +1373,89 @@ function createReceipt(sale) {
   win.document.close();
 }
 
+function invoiceRecipientName(group) {
+  const defaultName = group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
+  const isStoreSale = group.sales.every((sale) =>
+    (sale.companyName || sale.customerName) === "店頭販売" ||
+    sale.customerName === "店頭販売"
+  );
+  if (!isStoreSale) return defaultName;
+  return (prompt("請求書の宛名を入力してください（空白でも作れます）", "") || "").trim();
+}
+
+function createReceiptForGroup(group) {
+  const rate = Number(receiptTaxRate.value || 8);
+  const tax = taxFromIncluded(group.total, rate);
+  const beforeTax = group.total - tax;
+  const isStoreSale = group.sales.every((sale) =>
+    (sale.companyName || sale.customerName) === "店頭販売" ||
+    sale.customerName === "店頭販売"
+  );
+  const defaultName = group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
+  const recipientName = isStoreSale
+    ? (prompt("領収書の宛名を入力してください（空白でも作れます）", "") || "").trim()
+    : defaultName;
+  const recipientHtml = recipientName ? `<div class="to">${escapeHtml(recipientName)} 御中</div>` : "";
+  const itemNames = group.sales.flatMap((sale) => sale.items.map((item) => `${item.name}×${item.qty}`)).join("、");
+  const win = window.open("", "_blank");
+  if (!win) {
+    showToast("ポップアップを許可してください");
+    return;
+  }
+
+  win.document.write(`
+    <!doctype html>
+    <html lang="ja">
+      <head>
+        <meta charset="utf-8">
+        <title>領収書</title>
+        <style>
+          body { color: #17211b; font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; }
+          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; padding: 12px 18px; }
+          button { background: #f1b84b; border: 0; border-radius: 8px; font: inherit; font-weight: 700; min-height: 44px; padding: 8px 18px; }
+          .receipt { margin: 24px auto; max-width: 720px; padding: 28px; }
+          .label { color: #177a6b; font-weight: 800; margin: 0 0 12px; }
+          h1 { border-bottom: 2px solid #17211b; font-size: 32px; margin: 0 0 24px; padding-bottom: 10px; text-align: center; }
+          .to { font-size: 22px; font-weight: 800; margin-bottom: 22px; }
+          .amount { border: 2px solid #177a6b; border-radius: 8px; margin: 18px 0; padding: 16px; text-align: right; }
+          .amount span { color: #5f6b62; display: block; font-weight: 700; }
+          .amount strong { display: block; font-size: 34px; margin-top: 4px; }
+          .issuer { font-size: 18px; font-weight: 800; margin: 8px 0 18px; text-align: right; }
+          table { border-collapse: collapse; margin-top: 18px; width: 100%; }
+          th, td { border-bottom: 1px solid #d8ded6; padding: 10px 8px; text-align: left; }
+          th { background: #f4f6f1; }
+          .num { text-align: right; white-space: nowrap; }
+          .note { margin-top: 22px; }
+          @media print { .toolbar { display: none; } .receipt { margin: 0; max-width: none; padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.print()">印刷・PDF保存</button></div>
+        <section class="receipt">
+          <p class="label">領収書</p>
+          <h1>領収書</h1>
+          ${recipientHtml}
+          <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
+          <p>${new Date().toLocaleDateString("ja-JP")}</p>
+          <div class="amount"><span>領収金額</span><strong>${yen(group.total)}</strong></div>
+          <p>但し　お弁当代として</p>
+          <table>
+            <tbody>
+              <tr><th>税込対象額</th><td class="num">${yen(group.total)}</td></tr>
+              <tr><th>税抜金額</th><td class="num">${yen(beforeTax)}</td></tr>
+              <tr><th>消費税額（${rate}%・内税）</th><td class="num">${yen(tax)}</td></tr>
+            </tbody>
+          </table>
+          <p class="note">明細: ${escapeHtml(itemNames)}</p>
+        </section>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 function invoiceHtmlForGroup(group, selectedMonth) {
-  const recipientName = group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
+  const recipientName = invoiceRecipientName(group);
   const deliveries = [...new Set(group.sales.map((sale) => sale.deliveryName || sale.customerName || "").filter(Boolean))];
   const deliveryText = deliveries.length === 1 ? deliveries[0] : deliveries.join("、");
   const showDelivery = deliveryText && deliveryText !== group.company && deliveryText !== group.billing;
@@ -1324,7 +1490,7 @@ function invoiceHtmlForGroup(group, selectedMonth) {
       <div class="invoice-head">
         <div>
           <p class="invoice-label">請求書</p>
-          <h1>${escapeHtml(recipientName)} 御中</h1>
+          <h1>${recipientName ? `${escapeHtml(recipientName)} 御中` : "　"}</h1>
           ${deliveryHtml}
           <p>${escapeHtml(group.company)} / ${escapeHtml(selectedMonth)} ご利用分</p>
         </div>
@@ -1401,7 +1567,7 @@ function openInvoiceWindow(groups, selectedMonth) {
         <title>請求書 ${escapeHtml(selectedMonth)}</title>
         <style>
           body { color: #17211b; font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; }
-          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; padding: 12px 18px; position: sticky; top: 0; }
+          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; display: flex; gap: 10px; padding: 12px 18px; position: sticky; top: 0; }
           button { background: #f1b84b; border: 0; border-radius: 8px; font: inherit; font-weight: 700; min-height: 44px; padding: 8px 18px; }
           .invoice { page-break-after: always; padding: 28px; }
           .invoice:last-child { page-break-after: auto; }
@@ -1439,7 +1605,10 @@ function openInvoiceWindow(groups, selectedMonth) {
         </style>
       </head>
       <body>
-        <div class="toolbar"><button onclick="window.print()">印刷・PDF保存</button></div>
+        <div class="toolbar">
+          <button onclick="window.close()">戻る</button>
+          <button onclick="window.print()">印刷・PDF保存</button>
+        </div>
         ${groups.map((group) => invoiceHtmlForGroup(group, selectedMonth)).join("")}
       </body>
     </html>
@@ -1555,6 +1724,14 @@ document.querySelectorAll(".method").forEach((button) => {
     state.paymentMethod = button.dataset.payment;
     renderAll();
   });
+});
+
+document.querySelectorAll(".history-view-tab").forEach((button) => {
+  button.addEventListener("click", () => setHistoryView(button.dataset.historyView));
+});
+
+document.querySelectorAll("[data-payment-filter]").forEach((button) => {
+  button.addEventListener("click", () => setHistoryPaymentFilter(button.dataset.paymentFilter));
 });
 
 cashierSelect.addEventListener("change", () => {
@@ -1852,10 +2029,13 @@ document.querySelector("#resetProductsButton").addEventListener("click", () => {
 
 document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
   if (!confirm("売上履歴を消しますか？")) return;
+  const deletedIds = getSales().map((sale) => sale.id);
+  state.deletedSaleIds = [...new Set([...state.deletedSaleIds, ...deletedIds])];
+  saveDeletedSaleIds();
   saveSales([]);
-  await saveSharedNow();
+  const saved = await saveSharedNow();
   renderHistory();
-  showToast("売上を削除しました");
+  showToast(saved ? "売上を削除しました" : "この端末では削除しました。通信後にもう一度確認してください");
 });
 
 if (loginForm) {

@@ -109,8 +109,8 @@ button:disabled {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
   min-height: 100vh;
   padding: 18px;
 }
@@ -235,7 +235,7 @@ h2 {
   border-radius: 8px;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(150px, 1fr) 100px;
+  grid-template-columns: minmax(170px, 1fr) 74px;
   margin-bottom: 10px;
   padding: 10px;
 }
@@ -265,7 +265,9 @@ h2 {
   background: #fff0ee;
   border-color: #e1aaa5;
   color: var(--danger);
+  font-size: 13px;
   min-height: 48px;
+  padding: 6px;
 }
 
 .delivery-picker select {
@@ -381,7 +383,7 @@ h2 {
 
 .register {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   grid-template-rows: auto minmax(180px, 1fr) auto auto auto;
 }
 
@@ -390,7 +392,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: 12px;
 }
 
 .total-panel,
@@ -411,7 +413,7 @@ h2 {
 
 .active-customer-panel strong {
   color: var(--accent-dark);
-  font-size: 28px;
+  font-size: 22px;
   text-align: right;
 }
 
@@ -422,7 +424,7 @@ h2 {
 
 .total-panel strong,
 .change-panel strong {
-  font-size: 42px;
+  font-size: 36px;
 }
 
 .panel-header,
@@ -461,8 +463,8 @@ h2 {
 
 .cart-list {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .memo-field {
@@ -470,7 +472,7 @@ h2 {
   display: grid;
   font-weight: 800;
   gap: 6px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .memo-field textarea {
@@ -480,15 +482,15 @@ h2 {
   color: var(--ink);
   font: inherit;
   font-weight: 700;
-  min-height: 72px;
-  padding: 10px;
+  min-height: 56px;
+  padding: 8px;
   resize: vertical;
 }
 
 .empty {
   color: var(--muted);
-  font-size: 20px;
-  padding: 32px 0;
+  font-size: 16px;
+  padding: 18px 0;
   text-align: center;
 }
 
@@ -496,45 +498,46 @@ h2 {
   align-items: center;
   border-bottom: 1px solid var(--line);
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: minmax(0, 1fr) auto;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
 }
 
 .cart-item strong {
   display: block;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .cart-item small {
   color: var(--muted);
+  font-size: 12px;
   font-weight: 700;
 }
 
 .qty-controls {
   align-items: center;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 42px 36px 42px;
+  gap: 5px;
+  grid-template-columns: 34px 34px 34px;
 }
 
 .qty-controls button {
   background: #e7eee9;
-  font-size: 24px;
-  height: 42px;
+  font-size: 20px;
+  height: 34px;
 }
 
 .qty-controls input {
   background: #fff;
   border: 2px solid var(--line);
   border-radius: 8px;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 800;
-  height: 42px;
+  height: 34px;
   min-width: 0;
   padding: 4px;
   text-align: center;
-  width: 48px;
+  width: 38px;
 }
 
 .payment-panel output {
@@ -626,6 +629,20 @@ dialog::backdrop {
   margin: 18px 0;
 }
 
+.summary-button {
+  background: var(--paper);
+  border: 2px solid var(--line);
+  display: grid;
+  min-height: 72px;
+  padding: 10px;
+  text-align: left;
+}
+
+.summary-button.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .history-filter {
   align-items: end;
   display: grid;
@@ -651,6 +668,34 @@ dialog::backdrop {
   font-weight: 700;
   min-height: 48px;
   padding: 8px 10px;
+}
+
+.history-view-tabs {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.history-view-tab {
+  background: var(--paper);
+  border: 2px solid var(--line);
+  min-height: 50px;
+  padding: 8px;
+}
+
+.history-view-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.history-view {
+  display: none;
+}
+
+.history-view.active {
+  display: block;
 }
 
 .summary-four {
@@ -731,9 +776,9 @@ dialog::backdrop {
 }
 
 .history-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
+  grid-template-columns: 1fr 1fr;
   margin-top: 8px;
 }
 
@@ -742,7 +787,9 @@ dialog::backdrop {
 }
 
 .delete-sale-button {
+  font-size: 16px;
   min-height: 42px;
+  padding: 8px 14px;
 }
 
 .billing-item {
@@ -887,13 +934,17 @@ dialog::backdrop {
 
   .customer-edit,
   .custom-product,
-  .delivery-manage,
-  .staff-panel {
+  .delivery-manage {
     grid-template-columns: 1fr;
   }
 
+  .staff-panel {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+
   .staff-delete-button {
-    align-self: stretch;
+    align-self: end;
+    font-size: 12px;
   }
 
   .delivery-picker {
@@ -917,6 +968,10 @@ dialog::backdrop {
 
   .history-filter {
     grid-template-columns: 1fr;
+  }
+
+  .history-view-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel-header {

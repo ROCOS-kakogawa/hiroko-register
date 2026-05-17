@@ -191,18 +191,32 @@
       </div>
       <div class="summary summary-four">
         <div><span>件数</span><strong id="saleCount">0件</strong></div>
-        <div><span>合計</span><strong id="saleTotal">0円</strong></div>
-        <div><span>現金</span><strong id="cashTotal">0円</strong></div>
-        <div><span>PayPay</span><strong id="paypayTotal">0円</strong></div>
-        <div><span>未収</span><strong id="unpaidTotal">0円</strong></div>
+        <button class="summary-button active" type="button" data-payment-filter="all"><span>合計</span><strong id="saleTotal">0円</strong></button>
+        <button class="summary-button" type="button" data-payment-filter="cash"><span>現金</span><strong id="cashTotal">0円</strong></button>
+        <button class="summary-button" type="button" data-payment-filter="paypay"><span>PayPay</span><strong id="paypayTotal">0円</strong></button>
+        <button class="summary-button" type="button" data-payment-filter="unpaid"><span>未収</span><strong id="unpaidTotal">0円</strong></button>
       </div>
-      <h2 class="subhead">会社別まとめ</h2>
-      <div class="billing-list" id="companyList"></div>
-      <div class="history-list" id="historyList"></div>
-      <h2 class="subhead">請求先別まとめ</h2>
-      <div class="billing-list" id="billingList"></div>
-      <h2 class="subhead">配達先・請求先別まとめ</h2>
-      <div class="billing-list" id="deliveryBillingList"></div>
+      <div class="history-view-tabs" aria-label="売上表示切替">
+        <button class="history-view-tab active" type="button" data-history-view="sales">売上一覧</button>
+        <button class="history-view-tab" type="button" data-history-view="company">会社別</button>
+        <button class="history-view-tab" type="button" data-history-view="billing">請求先別</button>
+        <button class="history-view-tab" type="button" data-history-view="delivery">配達先別</button>
+      </div>
+      <section class="history-view active" data-history-panel="sales">
+        <div class="history-list" id="historyList"></div>
+      </section>
+      <section class="history-view" data-history-panel="company">
+        <h2 class="subhead">会社別 請求書・領収書</h2>
+        <div class="billing-list" id="companyList"></div>
+      </section>
+      <section class="history-view" data-history-panel="billing">
+        <h2 class="subhead">請求先別 請求書・領収書</h2>
+        <div class="billing-list" id="billingList"></div>
+      </section>
+      <section class="history-view" data-history-panel="delivery">
+        <h2 class="subhead">配達先・請求先別 請求書・領収書</h2>
+        <div class="billing-list" id="deliveryBillingList"></div>
+      </section>
       <div class="dialog-actions">
         <button class="checkout small-checkout" id="invoiceButton" type="button">請求書を作る</button>
         <button class="secondary" id="exportButton" type="button">CSV保存</button>

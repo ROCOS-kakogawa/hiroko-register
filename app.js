@@ -318,6 +318,13 @@ function normalizeSales(sales) {
     .filter((sale) => !state.deletedSaleIds.includes(sale.id));
 }
 
+function mergeSales(localSales, sharedSales) {
+  const merged = new Map();
+  normalizeSales(sharedSales).forEach((sale) => merged.set(sale.id, sale));
+  normalizeSales(localSales).forEach((sale) => merged.set(sale.id, sale));
+  return [...merged.values()].sort((a, b) => new Date(b.at) - new Date(a.at));
+}
+
 function saveDeletedSaleIds() {
   localStorage.setItem(storageKeys.deletedSales, JSON.stringify(state.deletedSaleIds));
 }
@@ -422,7 +429,7 @@ function applySharedData(data) {
     saveDeletedSaleIds();
   }
   if (Array.isArray(data.sales)) {
-    localStorage.setItem(storageKeys.sales, JSON.stringify(normalizeSales(data.sales)));
+    localStorage.setItem(storageKeys.sales, JSON.stringify(mergeSales(getSales(), data.sales)));
   }
 }
 
@@ -529,6 +536,15 @@ async function syncFromCloud() {
 async function saveCloudNow() {
   if (!state.cloudMode || !state.cloudClient) return true;
   try {
+    const { data } = await state.cloudClient
+      .from("register_state")
+      .select("data")
+      .eq("id", "main")
+      .single();
+    if (data && data.data && Array.isArray(data.data.sales)) {
+      const mergedSales = mergeSales(getSales(), data.data.sales);
+      localStorage.setItem(storageKeys.sales, JSON.stringify(mergedSales));
+    }
     const { error } = await state.cloudClient
       .from("register_state")
       .upsert({
@@ -970,8 +986,8 @@ async function checkout() {
   sales.unshift(sale);
   saveSales(sales);
   closeCompletedCart(customer.id);
-  await saveSharedNow();
-  showToast(`${paymentLabels[sale.paymentMethod]}で会計しました`);
+  const saved = await saveSharedNow();
+  showToast(saved ? `${paymentLabels[sale.paymentMethod]}で会計しました` : `${paymentLabels[sale.paymentMethod]}で会計しました（この端末に保存）`);
 }
 
 function paidValueForSale(total, method = state.paymentMethod) {
@@ -1322,7 +1338,7 @@ function createReceipt(sale) {
         <title>領収書 ${escapeHtml(customer)}</title>
         <style>
           body { color: #17211b; font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; }
-          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; padding: 12px 18px; }
+          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; display: flex; gap: 10px; padding: 12px 18px; }
           button { background: #f1b84b; border: 0; border-radius: 8px; font: inherit; font-weight: 700; min-height: 44px; padding: 8px 18px; }
           .receipt { margin: 24px auto; max-width: 720px; padding: 28px; }
           .label { color: #177a6b; font-weight: 800; margin: 0 0 12px; }
@@ -1344,7 +1360,7 @@ function createReceipt(sale) {
         </style>
       </head>
       <body>
-        <div class="toolbar"><button onclick="window.print()">印刷・PDF保存</button></div>
+        <div class="toolbar"><button onclick="window.close()">戻る</button><button onclick="window.print()">印刷・PDF保存</button></div>
         <section class="receipt">
           <p class="label">領収書</p>
           <h1>領収書</h1>
@@ -1411,7 +1427,7 @@ function createReceiptForGroup(group) {
         <title>領収書</title>
         <style>
           body { color: #17211b; font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; }
-          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; padding: 12px 18px; }
+          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; display: flex; gap: 10px; padding: 12px 18px; }
           button { background: #f1b84b; border: 0; border-radius: 8px; font: inherit; font-weight: 700; min-height: 44px; padding: 8px 18px; }
           .receipt { margin: 24px auto; max-width: 720px; padding: 28px; }
           .label { color: #177a6b; font-weight: 800; margin: 0 0 12px; }
@@ -1430,7 +1446,7 @@ function createReceiptForGroup(group) {
         </style>
       </head>
       <body>
-        <div class="toolbar"><button onclick="window.print()">印刷・PDF保存</button></div>
+        <div class="toolbar"><button onclick="window.close()">戻る</button><button onclick="window.print()">印刷・PDF保存</button></div>
         <section class="receipt">
           <p class="label">領収書</p>
           <h1>領収書</h1>
@@ -1933,10 +1949,11 @@ document.querySelector("#cancelCartButton").addEventListener("click", cancelActi
 checkoutButton.addEventListener("click", checkout);
 
 document.querySelector("#historyButton").addEventListener("click", async () => {
-  await syncFromShared();
   historyMonth.value = historyMonth.value || monthValue();
   renderHistory();
   historyDialog.showModal();
+  await syncFromShared();
+  renderHistory();
 });
 
 document.querySelector("#paypayQrButton").addEventListener("click", () => {
@@ -1947,10 +1964,11 @@ document.querySelector("#paypayQrButton").addEventListener("click", () => {
 });
 
 document.querySelector("#settlementButton").addEventListener("click", async () => {
-  await syncFromShared();
   settlementDate.value = settlementDate.value || dateValue();
   renderSettlement();
   settlementDialog.showModal();
+  await syncFromShared();
+  renderSettlement();
 });
 
 document.querySelector("#settingsButton").addEventListener("click", () => {
@@ -1972,33 +1990,39 @@ document.querySelector("#exportButton").addEventListener("click", exportCsv);
 document.querySelector("#invoiceButton").addEventListener("click", createInvoices);
 document.querySelector("#settlementCsvButton").addEventListener("click", exportSettlementCsv);
 settlementDate.addEventListener("change", async () => {
+  renderSettlement();
   await syncFromShared();
   renderSettlement();
 });
 document.querySelector("#showTodaySettlementButton").addEventListener("click", async () => {
-  await syncFromShared();
   settlementDate.value = dateValue();
+  renderSettlement();
+  await syncFromShared();
   renderSettlement();
 });
 historyMonth.addEventListener("change", async () => {
-  await syncFromShared();
   if (historyDate) historyDate.value = "";
+  renderHistory();
+  await syncFromShared();
   renderHistory();
 });
 historyDate.addEventListener("change", async () => {
+  renderHistory();
   await syncFromShared();
   renderHistory();
 });
 document.querySelector("#showThisMonthButton").addEventListener("click", async () => {
-  await syncFromShared();
   historyMonth.value = monthValue();
   if (historyDate) historyDate.value = "";
   renderHistory();
+  await syncFromShared();
+  renderHistory();
 });
 document.querySelector("#showTodayHistoryButton").addEventListener("click", async () => {
-  await syncFromShared();
   historyDate.value = dateValue();
   historyMonth.value = monthValue();
+  renderHistory();
+  await syncFromShared();
   renderHistory();
 });
 document.querySelector("#saveSettingsButton").addEventListener("click", applySettingsFromRows);

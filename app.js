@@ -23,6 +23,7 @@ const shopName = "美食美菜ROCO'S";
 const issuerAddress = "兵庫県加古川市野口町長砂95-36";
 const issuerTel = "TEL:079-498-1135";
 const bankAccount = "西兵庫信用金庫 加古川支店\n普通 0274670\n合同会社give comfort 代表社員 勝山 絋子";
+const stampImagePath = "stamp.png";
 const cashFloat = 30000;
 const storageKeys = {
   products: "bento-register-products",
@@ -1347,7 +1348,9 @@ function createReceipt(sale) {
           .amount { border: 2px solid #177a6b; border-radius: 8px; margin: 18px 0; padding: 16px; text-align: right; }
           .amount span { color: #5f6b62; display: block; font-weight: 700; }
           .amount strong { display: block; font-size: 34px; margin-top: 4px; }
-          .issuer { font-size: 18px; font-weight: 800; margin: 8px 0 18px; text-align: right; }
+          .issuer-row { align-items: center; display: flex; gap: 14px; justify-content: flex-end; margin: 8px 0 18px; }
+          .issuer { font-size: 18px; font-weight: 800; margin: 0; text-align: right; }
+          .stamp { height: 86px; object-fit: contain; width: 86px; }
           table { border-collapse: collapse; margin-top: 18px; width: 100%; }
           th, td { border-bottom: 1px solid #d8ded6; padding: 10px 8px; text-align: left; }
           th { background: #f4f6f1; }
@@ -1365,7 +1368,7 @@ function createReceipt(sale) {
           <p class="label">領収書</p>
           <h1>領収書</h1>
           ${recipientHtml}
-          <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
+          ${issuerHtmlWithStamp()}
           <p>${new Date(sale.at).toLocaleDateString("ja-JP")}　${paymentLabels[normalizePaymentMethod(sale.paymentMethod)]}</p>
           <div class="amount">
             <span>領収金額</span>
@@ -1387,6 +1390,15 @@ function createReceipt(sale) {
     </html>
   `);
   win.document.close();
+}
+
+function issuerHtmlWithStamp() {
+  return `
+    <div class="issuer-row">
+      <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
+      <img class="stamp" src="${stampImagePath}" alt="会社印">
+    </div>
+  `;
 }
 
 function invoiceRecipientName(group) {
@@ -1436,7 +1448,9 @@ function createReceiptForGroup(group) {
           .amount { border: 2px solid #177a6b; border-radius: 8px; margin: 18px 0; padding: 16px; text-align: right; }
           .amount span { color: #5f6b62; display: block; font-weight: 700; }
           .amount strong { display: block; font-size: 34px; margin-top: 4px; }
-          .issuer { font-size: 18px; font-weight: 800; margin: 8px 0 18px; text-align: right; }
+          .issuer-row { align-items: center; display: flex; gap: 14px; justify-content: flex-end; margin: 8px 0 18px; }
+          .issuer { font-size: 18px; font-weight: 800; margin: 0; text-align: right; }
+          .stamp { height: 86px; object-fit: contain; width: 86px; }
           table { border-collapse: collapse; margin-top: 18px; width: 100%; }
           th, td { border-bottom: 1px solid #d8ded6; padding: 10px 8px; text-align: left; }
           th { background: #f4f6f1; }
@@ -1451,7 +1465,7 @@ function createReceiptForGroup(group) {
           <p class="label">領収書</p>
           <h1>領収書</h1>
           ${recipientHtml}
-          <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
+          ${issuerHtmlWithStamp()}
           <p>${new Date().toLocaleDateString("ja-JP")}</p>
           <div class="amount"><span>領収金額</span><strong>${yen(group.total)}</strong></div>
           <p>但し　お弁当代として</p>
@@ -1515,7 +1529,7 @@ function invoiceHtmlForGroup(group, selectedMonth) {
           <strong>${yen(group.total)}</strong>
         </div>
       </div>
-      <p class="issuer">${escapeHtml(shopName)}<br>${escapeHtml(issuerName)}<br>${escapeHtml(issuerAddress)}<br>${escapeHtml(issuerTel)}</p>
+      ${issuerHtmlWithStamp()}
       <div class="invoice-info-grid">
         <div class="invoice-info due-info">
           <span>お支払期限</span>
@@ -1595,7 +1609,9 @@ function openInvoiceWindow(groups, selectedMonth) {
           .invoice-total { border: 2px solid #177a6b; border-radius: 8px; min-width: 220px; padding: 14px; text-align: right; }
           .invoice-total span { color: #5f6b62; display: block; font-weight: 700; }
           .invoice-total strong { display: block; font-size: 30px; margin-top: 4px; }
-          .issuer { font-size: 18px; font-weight: 800; margin-top: 16px; text-align: right; }
+          .issuer-row { align-items: center; display: flex; gap: 14px; justify-content: flex-end; margin-top: 16px; }
+          .issuer { font-size: 18px; font-weight: 800; margin: 0; text-align: right; }
+          .stamp { height: 86px; object-fit: contain; width: 86px; }
           .invoice-info-grid { display: grid; gap: 12px; grid-template-columns: 220px minmax(0, 1fr); margin: 18px 0; }
           .invoice-info { background: #f4f6f1; border: 1px solid #d8ded6; border-radius: 8px; padding: 12px; }
           .invoice-info span { color: #5f6b62; display: block; font-weight: 800; margin-bottom: 4px; }

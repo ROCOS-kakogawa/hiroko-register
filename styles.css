@@ -544,7 +544,7 @@ h2 {
   align-items: center;
   display: grid;
   gap: 5px;
-  grid-template-columns: 34px 50px 34px;
+  grid-template-columns: 34px 64px 34px;
 }
 
 .qty-controls button {
@@ -563,7 +563,7 @@ h2 {
   min-width: 0;
   padding: 4px 6px;
   text-align: center;
-  width: 50px;
+  width: 64px;
 }
 
 .payment-panel output {

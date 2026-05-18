@@ -1,4 +1,4 @@
-const CACHE_NAME = "bento-register-v23";
+const CACHE_NAME = "bento-register-v24";
 const APP_FILES = [
   "./",
   "./index.html",

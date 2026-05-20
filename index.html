@@ -186,10 +186,12 @@
             <option value="10">10%</option>
           </select>
         </label>
-        <button class="secondary" id="prevHistoryDayButton" type="button">前日</button>
-        <button class="secondary" id="showTodayHistoryButton" type="button">今日</button>
-        <button class="secondary" id="nextHistoryDayButton" type="button">翌日</button>
         <button class="secondary" id="showThisMonthButton" type="button">今月</button>
+        <div class="date-shift-buttons">
+          <button class="secondary" id="prevHistoryDayButton" type="button">前日</button>
+          <button class="secondary" id="showTodayHistoryButton" type="button">今日</button>
+          <button class="secondary" id="nextHistoryDayButton" type="button">翌日</button>
+        </div>
       </div>
       <div class="summary summary-four">
         <div><span>件数</span><strong id="saleCount">0件</strong></div>
@@ -240,9 +242,11 @@
           精算担当
           <select id="settlementStaffSelect"></select>
         </label>
-        <button class="secondary" id="prevSettlementDayButton" type="button">前日</button>
-        <button class="secondary" id="showTodaySettlementButton" type="button">今日</button>
-        <button class="secondary" id="nextSettlementDayButton" type="button">翌日</button>
+        <div class="date-shift-buttons">
+          <button class="secondary" id="prevSettlementDayButton" type="button">前日</button>
+          <button class="secondary" id="showTodaySettlementButton" type="button">今日</button>
+          <button class="secondary" id="nextSettlementDayButton" type="button">翌日</button>
+        </div>
       </div>
       <div class="summary settlement-summary">
         <div><span>件数</span><strong id="settlementCount">0件</strong></div>

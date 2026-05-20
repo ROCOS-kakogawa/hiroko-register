@@ -724,8 +724,15 @@ dialog::backdrop {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(150px, 1fr) repeat(4, minmax(72px, 92px));
+  grid-template-columns: repeat(3, minmax(150px, 1fr)) 92px;
   margin-top: 16px;
+}
+
+.date-shift-buttons {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .history-filter label {
@@ -1046,6 +1053,10 @@ dialog::backdrop {
 
   .history-filter {
     grid-template-columns: 1fr;
+  }
+
+  .date-shift-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .history-view-tabs {

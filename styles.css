@@ -735,6 +735,17 @@ dialog::backdrop {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.selected-date-label {
+  background: #f4f6f1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent-dark);
+  font-weight: 800;
+  grid-column: 1 / -1;
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
 .history-filter label {
   color: var(--muted);
   display: grid;

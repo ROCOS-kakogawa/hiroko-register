@@ -86,6 +86,7 @@ const deliveryBillingList = document.querySelector("#deliveryBillingList");
 const companyList = document.querySelector("#companyList");
 const historyMonth = document.querySelector("#historyMonth");
 const historyDate = document.querySelector("#historyDate");
+const historyDateLabel = document.querySelector("#historyDateLabel");
 const receiptTaxRate = document.querySelector("#receiptTaxRate");
 const saleCount = document.querySelector("#saleCount");
 const saleTotal = document.querySelector("#saleTotal");
@@ -101,6 +102,7 @@ const paypayQrImage = document.querySelector("#paypayQrImage");
 const paypayQrFallback = document.querySelector("#paypayQrFallback");
 const settlementDialog = document.querySelector("#settlementDialog");
 const settlementDate = document.querySelector("#settlementDate");
+const settlementDateLabel = document.querySelector("#settlementDateLabel");
 const settlementList = document.querySelector("#settlementList");
 const settlementCount = document.querySelector("#settlementCount");
 const settlementTotal = document.querySelector("#settlementTotal");
@@ -1093,6 +1095,17 @@ function shiftedDateValue(value, offsetDays) {
   return dateValue(base);
 }
 
+function dateLabel(value) {
+  if (!value) return "";
+  const date = new Date(`${value}T00:00:00`);
+  return date.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short"
+  });
+}
+
 function saleMonthValue(sale) {
   const date = new Date(sale.at);
   return monthValue(date);
@@ -1218,6 +1231,11 @@ function groupSalesByCompany(sales) {
 
 function renderHistory() {
   if (!historyMonth.value) historyMonth.value = monthValue();
+  if (historyDateLabel) {
+    historyDateLabel.textContent = historyDate && historyDate.value
+      ? `${dateLabel(historyDate.value)} を表示中`
+      : `${historyMonth.value} 月別で表示中`;
+  }
   const sales = selectedHistorySales();
   const baseFilter = historyPaymentFilter;
   historyPaymentFilter = "all";
@@ -1323,6 +1341,7 @@ function renderHistory() {
 
 function renderSettlement() {
   if (!settlementDate.value) settlementDate.value = dateValue();
+  if (settlementDateLabel) settlementDateLabel.textContent = `${dateLabel(settlementDate.value)} を表示中`;
   const sales = selectedSettlementSales();
   const cancels = selectedSettlementCancels();
   const total = sales.reduce((sum, sale) => sum + sale.total, 0);

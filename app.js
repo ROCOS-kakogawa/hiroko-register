@@ -87,6 +87,7 @@ const companyList = document.querySelector("#companyList");
 const historyMonth = document.querySelector("#historyMonth");
 const historyDate = document.querySelector("#historyDate");
 const historyDateLabel = document.querySelector("#historyDateLabel");
+const historyDateInlineLabel = document.querySelector("#historyDateInlineLabel");
 const receiptTaxRate = document.querySelector("#receiptTaxRate");
 const saleCount = document.querySelector("#saleCount");
 const saleTotal = document.querySelector("#saleTotal");
@@ -1231,11 +1232,15 @@ function groupSalesByCompany(sales) {
 
 function renderHistory() {
   if (!historyMonth.value) historyMonth.value = monthValue();
+  const historyLabelText = historyDate && historyDate.value
+    ? `${dateLabel(historyDate.value)} を表示中`
+    : "日付指定なし（月別表示）";
   if (historyDateLabel) {
     historyDateLabel.textContent = historyDate && historyDate.value
-      ? `${dateLabel(historyDate.value)} を表示中`
+      ? historyLabelText
       : `${historyMonth.value} 月別で表示中`;
   }
+  if (historyDateInlineLabel) historyDateInlineLabel.textContent = historyLabelText;
   const sales = selectedHistorySales();
   const baseFilter = historyPaymentFilter;
   historyPaymentFilter = "all";

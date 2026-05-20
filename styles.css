@@ -746,6 +746,13 @@ dialog::backdrop {
   padding: 10px 12px;
 }
 
+.inline-date-label {
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .history-filter label {
   color: var(--muted);
   display: grid;

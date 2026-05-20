@@ -724,7 +724,7 @@ dialog::backdrop {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(180px, 1fr) 92px;
+  grid-template-columns: minmax(150px, 1fr) repeat(4, minmax(72px, 92px));
   margin-top: 16px;
 }
 

@@ -1087,6 +1087,12 @@ function dateValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function shiftedDateValue(value, offsetDays) {
+  const base = value ? new Date(`${value}T00:00:00`) : new Date();
+  base.setDate(base.getDate() + offsetDays);
+  return dateValue(base);
+}
+
 function saleMonthValue(sale) {
   const date = new Date(sale.at);
   return monthValue(date);
@@ -2141,6 +2147,18 @@ document.querySelector("#showTodaySettlementButton").addEventListener("click", a
   await syncFromShared();
   renderSettlement();
 });
+document.querySelector("#prevSettlementDayButton").addEventListener("click", async () => {
+  settlementDate.value = shiftedDateValue(settlementDate.value, -1);
+  renderSettlement();
+  await syncFromShared();
+  renderSettlement();
+});
+document.querySelector("#nextSettlementDayButton").addEventListener("click", async () => {
+  settlementDate.value = shiftedDateValue(settlementDate.value, 1);
+  renderSettlement();
+  await syncFromShared();
+  renderSettlement();
+});
 if (actualDrawerCash) {
   actualDrawerCash.addEventListener("input", () => {
     const key = settlementDate.value || dateValue();
@@ -2172,6 +2190,20 @@ document.querySelector("#showThisMonthButton").addEventListener("click", async (
 document.querySelector("#showTodayHistoryButton").addEventListener("click", async () => {
   historyDate.value = dateValue();
   historyMonth.value = monthValue();
+  renderHistory();
+  await syncFromShared();
+  renderHistory();
+});
+document.querySelector("#prevHistoryDayButton").addEventListener("click", async () => {
+  historyDate.value = shiftedDateValue(historyDate.value, -1);
+  historyMonth.value = historyDate.value.slice(0, 7);
+  renderHistory();
+  await syncFromShared();
+  renderHistory();
+});
+document.querySelector("#nextHistoryDayButton").addEventListener("click", async () => {
+  historyDate.value = shiftedDateValue(historyDate.value, 1);
+  historyMonth.value = historyDate.value.slice(0, 7);
   renderHistory();
   await syncFromShared();
   renderHistory();

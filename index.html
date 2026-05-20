@@ -254,6 +254,20 @@
         <div><span>レジ現金目安</span><strong id="settlementDrawerCash">0円</strong></div>
         <div><span>抜く現金目安</span><strong id="settlementCashToRemove">0円</strong></div>
       </div>
+      <div class="settlement-check">
+        <label>
+          実際に数えたレジ現金
+          <input id="actualDrawerCash" type="number" inputmode="numeric" placeholder="例：30600">
+        </label>
+        <div>
+          <span>差額</span>
+          <strong id="settlementDifference">0円</strong>
+        </div>
+      </div>
+      <h2 class="subhead">担当者別</h2>
+      <div class="billing-list" id="settlementStaffList"></div>
+      <h2 class="subhead">取消履歴</h2>
+      <div class="history-list" id="settlementCancelList"></div>
       <div class="history-list" id="settlementList"></div>
       <div class="dialog-actions">
         <button class="secondary" id="settlementCsvButton" type="button">精算CSV保存</button>

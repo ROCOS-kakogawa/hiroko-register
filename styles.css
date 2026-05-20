@@ -655,6 +655,57 @@ dialog::backdrop {
   margin: 18px 0;
 }
 
+.settlement-check {
+  background: #f4f6f1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(170px, 1fr) 150px;
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.settlement-check label {
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.settlement-check input {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 800;
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.settlement-check div {
+  display: grid;
+  gap: 6px;
+}
+
+.settlement-check span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.settlement-check strong {
+  color: var(--accent-dark);
+  font-size: 24px;
+}
+
+.settlement-check .difference-plus {
+  color: var(--accent-dark);
+}
+
+.settlement-check .difference-minus {
+  color: var(--danger);
+}
+
 .summary-button {
   background: var(--paper);
   border: 2px solid var(--line);
@@ -988,7 +1039,8 @@ dialog::backdrop {
   }
 
   .settlement-summary,
-  .cash-summary {
+  .cash-summary,
+  .settlement-check {
     grid-template-columns: 1fr;
   }
 

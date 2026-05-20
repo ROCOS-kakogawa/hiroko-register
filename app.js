@@ -33,7 +33,9 @@ const storageKeys = {
   deliveryRecords: "bento-register-delivery-records",
   staff: "bento-register-staff",
   cashier: "bento-register-cashier",
-  deletedSales: "bento-register-deleted-sales"
+  deletedSales: "bento-register-deleted-sales",
+  cancelLog: "bento-register-cancel-log",
+  actualCash: "bento-register-actual-cash"
 };
 
 const state = {
@@ -44,6 +46,8 @@ const state = {
   staff: loadStaff(),
   cashier: localStorage.getItem(storageKeys.cashier) || "",
   deletedSaleIds: loadDeletedSaleIds(),
+  cancelLog: loadCancelLog(),
+  actualCash: loadActualCash(),
   activeCustomerId: "",
   paymentMethod: "cash",
   sharedMode: location.protocol === "http:" || location.protocol === "https:",
@@ -108,6 +112,10 @@ const settlementFloat = document.querySelector("#settlementFloat");
 const settlementCashPaid = document.querySelector("#settlementCashPaid");
 const settlementDrawerCash = document.querySelector("#settlementDrawerCash");
 const settlementCashToRemove = document.querySelector("#settlementCashToRemove");
+const actualDrawerCash = document.querySelector("#actualDrawerCash");
+const settlementDifference = document.querySelector("#settlementDifference");
+const settlementStaffList = document.querySelector("#settlementStaffList");
+const settlementCancelList = document.querySelector("#settlementCancelList");
 const clock = document.querySelector("#clock");
 const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
@@ -285,6 +293,34 @@ function loadDeletedSaleIds() {
   }
 }
 
+function loadCancelLog() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKeys.cancelLog) || "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadActualCash() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKeys.actualCash) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCancelLog() {
+  localStorage.setItem(storageKeys.cancelLog, JSON.stringify(state.cancelLog));
+  scheduleSharedSave();
+}
+
+function saveActualCash() {
+  localStorage.setItem(storageKeys.actualCash, JSON.stringify(state.actualCash));
+  scheduleSharedSave();
+}
+
 function saveProducts() {
   localStorage.setItem(storageKeys.products, JSON.stringify(state.products));
   scheduleSharedSave();
@@ -330,6 +366,23 @@ function saveDeletedSaleIds() {
   localStorage.setItem(storageKeys.deletedSales, JSON.stringify(state.deletedSaleIds));
 }
 
+function logCancelledSale(sale, reason = "1件取消") {
+  const entry = {
+    id: makeId("cancel"),
+    at: new Date().toISOString(),
+    saleId: sale.id,
+    saleAt: sale.at,
+    companyName: sale.companyName || sale.customerName || "お客様",
+    total: sale.total || 0,
+    paymentMethod: normalizePaymentMethod(sale.paymentMethod),
+    cashierName: sale.cashierName || "未設定",
+    cancelledBy: state.cashier || cashierSelect.value || "未設定",
+    reason
+  };
+  state.cancelLog.unshift(entry);
+  saveCancelLog();
+}
+
 function getSales() {
   try {
     const raw = JSON.parse(localStorage.getItem(storageKeys.sales) || "[]");
@@ -362,6 +415,7 @@ async function deleteSaleById(saleId) {
     state.deletedSaleIds.push(saleId);
     saveDeletedSaleIds();
   }
+  logCancelledSale(sale);
   saveSales(sales.filter((item) => item.id !== saleId));
   const saved = await saveSharedNow();
   renderHistory();
@@ -393,6 +447,8 @@ function sharedSnapshot() {
     deliveryRecords: state.deliveryRecords,
     staff: state.staff,
     deletedSaleIds: state.deletedSaleIds,
+    cancelLog: state.cancelLog,
+    actualCash: state.actualCash,
     sales: getSales()
   };
 }
@@ -428,6 +484,17 @@ function applySharedData(data) {
   if (Array.isArray(data.deletedSaleIds)) {
     state.deletedSaleIds = [...new Set([...state.deletedSaleIds, ...data.deletedSaleIds])];
     saveDeletedSaleIds();
+  }
+  if (Array.isArray(data.cancelLog)) {
+    const merged = new Map();
+    data.cancelLog.forEach((entry) => merged.set(entry.id, entry));
+    state.cancelLog.forEach((entry) => merged.set(entry.id, entry));
+    state.cancelLog = [...merged.values()].sort((a, b) => new Date(b.at) - new Date(a.at));
+    localStorage.setItem(storageKeys.cancelLog, JSON.stringify(state.cancelLog));
+  }
+  if (data.actualCash && typeof data.actualCash === "object") {
+    state.actualCash = { ...data.actualCash, ...state.actualCash };
+    localStorage.setItem(storageKeys.actualCash, JSON.stringify(state.actualCash));
   }
   if (Array.isArray(data.sales)) {
     localStorage.setItem(storageKeys.sales, JSON.stringify(mergeSales(getSales(), data.sales)));
@@ -1048,6 +1115,11 @@ function selectedSettlementSales() {
   return getSales().filter((sale) => dateValue(new Date(sale.at)) === selectedDate);
 }
 
+function selectedSettlementCancels() {
+  const selectedDate = settlementDate.value || dateValue();
+  return state.cancelLog.filter((entry) => dateValue(new Date(entry.at)) === selectedDate);
+}
+
 function billingKeyForSale(sale) {
   const company = sale.companyName || sale.customerName || "お客様";
   const billing = sale.billingName || sale.customerName || "お客様";
@@ -1246,6 +1318,7 @@ function renderHistory() {
 function renderSettlement() {
   if (!settlementDate.value) settlementDate.value = dateValue();
   const sales = selectedSettlementSales();
+  const cancels = selectedSettlementCancels();
   const total = sales.reduce((sum, sale) => sum + sale.total, 0);
   const cashSales = sales.filter((sale) => normalizePaymentMethod(sale.paymentMethod) === "cash");
   const cash = cashSales.reduce((sum, sale) => sum + sale.total, 0);
@@ -1267,6 +1340,58 @@ function renderSettlement() {
   settlementCashPaid.textContent = yen(cashPaid);
   settlementDrawerCash.textContent = yen(drawerCash);
   settlementCashToRemove.textContent = yen(cashToRemove);
+  if (actualDrawerCash) actualDrawerCash.value = state.actualCash[settlementDate.value] || "";
+  const actual = Number((actualDrawerCash && actualDrawerCash.value) || 0);
+  const difference = actual ? actual - drawerCash : 0;
+  if (settlementDifference) {
+    settlementDifference.textContent = actual ? yen(difference) : "未入力";
+    settlementDifference.classList.toggle("difference-plus", difference > 0);
+    settlementDifference.classList.toggle("difference-minus", difference < 0);
+  }
+
+  if (settlementStaffList) {
+    const staffGroups = new Map();
+    sales.forEach((sale) => {
+      const staff = sale.cashierName || "未設定";
+      const method = normalizePaymentMethod(sale.paymentMethod);
+      const current = staffGroups.get(staff) || { staff, count: 0, total: 0, cash: 0, paypay: 0, unpaid: 0 };
+      current.count += 1;
+      current.total += sale.total;
+      current[method] += sale.total;
+      staffGroups.set(staff, current);
+    });
+    settlementStaffList.innerHTML = "";
+    if (staffGroups.size === 0) {
+      settlementStaffList.innerHTML = '<p class="empty">担当者別の売上はまだありません</p>';
+    } else {
+      [...staffGroups.values()].forEach((group) => {
+        const row = document.createElement("div");
+        row.className = "billing-item";
+        row.innerHTML = `
+          <strong>${escapeHtml(group.staff)}</strong>
+          <span>${group.count}件　合計 ${yen(group.total)}　現金 ${yen(group.cash)}　PayPay ${yen(group.paypay)}　未収 ${yen(group.unpaid)}</span>
+        `;
+        settlementStaffList.append(row);
+      });
+    }
+  }
+
+  if (settlementCancelList) {
+    settlementCancelList.innerHTML = "";
+    if (cancels.length === 0) {
+      settlementCancelList.innerHTML = '<p class="empty">この日の取消はありません</p>';
+    } else {
+      cancels.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "history-item unpaid-item";
+        row.innerHTML = `
+          <strong>${new Date(entry.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}　${escapeHtml(entry.companyName)}　${yen(entry.total)}</strong>
+          <span>${paymentLabels[normalizePaymentMethod(entry.paymentMethod)]} / 売上担当: ${escapeHtml(entry.cashierName)} / 取消: ${escapeHtml(entry.cancelledBy)}</span>
+        `;
+        settlementCancelList.append(row);
+      });
+    }
+  }
 
   settlementList.innerHTML = "";
   if (sales.length === 0) {
@@ -2016,6 +2141,16 @@ document.querySelector("#showTodaySettlementButton").addEventListener("click", a
   await syncFromShared();
   renderSettlement();
 });
+if (actualDrawerCash) {
+  actualDrawerCash.addEventListener("input", () => {
+    const key = settlementDate.value || dateValue();
+    const value = actualDrawerCash.value.trim();
+    if (value) state.actualCash[key] = value;
+    else delete state.actualCash[key];
+    saveActualCash();
+    renderSettlement();
+  });
+}
 historyMonth.addEventListener("change", async () => {
   if (historyDate) historyDate.value = "";
   renderHistory();
@@ -2069,9 +2204,11 @@ document.querySelector("#resetProductsButton").addEventListener("click", () => {
 
 document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
   if (!confirm("売上履歴を消しますか？")) return;
-  const deletedIds = getSales().map((sale) => sale.id);
+  const existingSales = getSales();
+  const deletedIds = existingSales.map((sale) => sale.id);
   state.deletedSaleIds = [...new Set([...state.deletedSaleIds, ...deletedIds])];
   saveDeletedSaleIds();
+  existingSales.forEach((sale) => logCancelledSale(sale, "全履歴削除"));
   saveSales([]);
   const saved = await saveSharedNow();
   renderHistory();

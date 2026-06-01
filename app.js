@@ -77,6 +77,8 @@ const paidAmount = document.querySelector("#paidAmount");
 const changeAmount = document.querySelector("#changeAmount");
 const changeLabel = document.querySelector("#changeLabel");
 const checkoutButton = document.querySelector("#checkoutButton");
+const checkoutSaleDate = document.querySelector("#checkoutSaleDate");
+const checkoutSaleTime = document.querySelector("#checkoutSaleTime");
 const cashArea = document.querySelector("#cashArea");
 const toast = document.querySelector("#toast");
 const historyDialog = document.querySelector("#historyDialog");
@@ -1049,10 +1051,11 @@ async function checkout() {
   const total = Math.max(currentTotal(), 0);
   const paid = state.paymentMethod === "cash" || state.paymentMethod === "paypay" ? paidValueForSale(total, state.paymentMethod) : 0;
   if (total <= 0 || (state.paymentMethod === "cash" && paid < total)) return;
+  initCheckoutSaleDateTime();
 
   const sale = {
     id: self.crypto && crypto.randomUUID ? crypto.randomUUID() : makeId("sale"),
-    at: new Date().toISOString(),
+    at: localIsoFromDateTime(checkoutSaleDate ? checkoutSaleDate.value : "", checkoutSaleTime ? checkoutSaleTime.value : ""),
     customerName: customer.name,
     companyName: customer.companyName || customer.name,
     billingName: customer.billingName || customer.name,
@@ -1070,6 +1073,7 @@ async function checkout() {
   sales.unshift(sale);
   saveSales(sales);
   closeCompletedCart(customer.id);
+  if (checkoutSaleTime) checkoutSaleTime.value = timeValue();
   const saved = await saveSharedNow();
   showToast(saved ? `${paymentLabels[sale.paymentMethod]}で会計しました` : `${paymentLabels[sale.paymentMethod]}で会計しました（この端末に保存）`);
 }
@@ -1113,6 +1117,11 @@ function localIsoFromDateTime(dateText, timeText) {
   const safeDate = dateText || dateValue();
   const safeTime = timeText || "12:00";
   return new Date(`${safeDate}T${safeTime}:00`).toISOString();
+}
+
+function initCheckoutSaleDateTime() {
+  if (checkoutSaleDate && !checkoutSaleDate.value) checkoutSaleDate.value = dateValue();
+  if (checkoutSaleTime && !checkoutSaleTime.value) checkoutSaleTime.value = timeValue();
 }
 
 function shiftedDateValue(value, offsetDays) {
@@ -2453,6 +2462,7 @@ if (paypayQrImage) {
 }
 
 updateClock();
+initCheckoutSaleDateTime();
 window.setInterval(updateClock, 1000 * 30);
 renderProducts();
 renderAll();

@@ -581,6 +581,32 @@ h2 {
   margin: 8px 0;
 }
 
+.sale-date-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin: 8px 0 12px;
+}
+
+.sale-date-grid label {
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.sale-date-grid input {
+  background: #f8faf7;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
 .method {
   background: #e7eee9;
   border: 2px solid transparent;
@@ -1125,6 +1151,7 @@ dialog::backdrop {
 
   .settlement-summary,
   .cash-summary,
+  .sale-date-grid,
   .settlement-check,
   .manual-sale-grid {
     grid-template-columns: 1fr;

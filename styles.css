@@ -825,6 +825,66 @@ dialog::backdrop {
   margin-top: 4px;
 }
 
+.manual-sale-form {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 12px;
+}
+
+.manual-sale-head,
+.manual-sale-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.manual-sale-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+.manual-sale-grid label {
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.manual-sale-grid input,
+.manual-sale-grid select,
+.manual-sale-grid textarea {
+  background: #f8faf7;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.manual-sale-grid textarea {
+  resize: vertical;
+}
+
+.manual-sale-memo {
+  grid-column: 1 / -1;
+}
+
+.manual-sale-actions span {
+  color: var(--accent-dark);
+  font-weight: 800;
+  text-align: right;
+}
+
 .history-list,
 .billing-list,
 .delivery-list {
@@ -880,7 +940,7 @@ dialog::backdrop {
 .history-actions {
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   margin-top: 8px;
 }
 
@@ -1065,8 +1125,15 @@ dialog::backdrop {
 
   .settlement-summary,
   .cash-summary,
-  .settlement-check {
+  .settlement-check,
+  .manual-sale-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manual-sale-head,
+  .manual-sale-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .history-filter {

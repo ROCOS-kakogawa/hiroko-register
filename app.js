@@ -125,6 +125,19 @@ const loginForm = document.querySelector("#loginForm");
 const loginMessage = document.querySelector("#loginMessage");
 const appError = document.querySelector("#appError");
 const logoutButton = document.querySelector("#logoutButton");
+const manualSaleForm = document.querySelector("#manualSaleForm");
+const manualSaleId = document.querySelector("#manualSaleId");
+const manualSaleDate = document.querySelector("#manualSaleDate");
+const manualSaleTime = document.querySelector("#manualSaleTime");
+const manualCompanyName = document.querySelector("#manualCompanyName");
+const manualBillingName = document.querySelector("#manualBillingName");
+const manualDeliveryName = document.querySelector("#manualDeliveryName");
+const manualPaymentMethod = document.querySelector("#manualPaymentMethod");
+const manualSaleTotal = document.querySelector("#manualSaleTotal");
+const manualPaidAmount = document.querySelector("#manualPaidAmount");
+const manualCashierName = document.querySelector("#manualCashierName");
+const manualSaleMemo = document.querySelector("#manualSaleMemo");
+const manualSaleMessage = document.querySelector("#manualSaleMessage");
 
 window.addEventListener("error", (event) => {
   if (!appError) return;
@@ -1090,6 +1103,18 @@ function dateValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function timeValue(date = new Date()) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${hour}:${minute}`;
+}
+
+function localIsoFromDateTime(dateText, timeText) {
+  const safeDate = dateText || dateValue();
+  const safeTime = timeText || "12:00";
+  return new Date(`${safeDate}T${safeTime}:00`).toISOString();
+}
+
 function shiftedDateValue(value, offsetDays) {
   const base = value ? new Date(`${value}T00:00:00`) : new Date();
   base.setDate(base.getDate() + offsetDays);
@@ -1138,6 +1163,103 @@ function selectedSettlementSales() {
 function selectedSettlementCancels() {
   const selectedDate = settlementDate.value || dateValue();
   return state.cancelLog.filter((entry) => dateValue(new Date(entry.at)) === selectedDate);
+}
+
+function resetManualSaleForm(dateText = "") {
+  if (!manualSaleForm) return;
+  manualSaleId.value = "";
+  manualSaleDate.value = dateText || (historyDate && historyDate.value) || `${historyMonth.value || monthValue()}-01`;
+  manualSaleTime.value = timeValue();
+  manualCompanyName.value = "";
+  manualBillingName.value = "";
+  manualDeliveryName.value = "";
+  manualPaymentMethod.value = "unpaid";
+  manualSaleTotal.value = "";
+  manualPaidAmount.value = "";
+  manualCashierName.value = state.cashier || cashierSelect.value || "";
+  manualSaleMemo.value = "";
+  if (manualSaleMessage) manualSaleMessage.textContent = "新しい売上を入力できます";
+}
+
+function fillManualSaleForm(sale) {
+  if (!manualSaleForm || !sale) return;
+  const at = new Date(sale.at);
+  manualSaleId.value = sale.id;
+  manualSaleDate.value = dateValue(at);
+  manualSaleTime.value = timeValue(at);
+  manualCompanyName.value = sale.companyName || sale.customerName || "";
+  manualBillingName.value = sale.billingName || sale.customerName || "";
+  manualDeliveryName.value = sale.deliveryName || sale.customerName || "";
+  manualPaymentMethod.value = normalizePaymentMethod(sale.paymentMethod);
+  manualSaleTotal.value = sale.total || "";
+  manualPaidAmount.value = salePaidAmount(sale) || "";
+  manualCashierName.value = sale.cashierName || "";
+  manualSaleMemo.value = sale.memo || "";
+  if (manualSaleMessage) manualSaleMessage.textContent = "この売上を訂正中です";
+  manualSaleForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function saleFromManualForm() {
+  const total = Math.floor(Number(manualSaleTotal.value || 0));
+  if (!manualSaleDate.value || !manualCompanyName.value.trim() || total <= 0) return null;
+
+  const method = normalizePaymentMethod(manualPaymentMethod.value);
+  const paid = method === "cash"
+    ? Math.max(Number(manualPaidAmount.value || total), total)
+    : method === "paypay"
+      ? total
+      : 0;
+  const company = manualCompanyName.value.trim();
+  const billing = manualBillingName.value.trim() || company;
+  const delivery = manualDeliveryName.value.trim() || company;
+  const memo = manualSaleMemo.value.trim();
+
+  return {
+    id: manualSaleId.value || (self.crypto && crypto.randomUUID ? crypto.randomUUID() : makeId("sale")),
+    at: localIsoFromDateTime(manualSaleDate.value, manualSaleTime.value),
+    customerName: company,
+    companyName: company,
+    billingName: billing,
+    deliveryName: delivery,
+    memo,
+    cashierName: manualCashierName.value.trim() || state.cashier || cashierSelect.value || "職員",
+    paymentMethod: method,
+    total,
+    paid,
+    change: method === "cash" ? Math.max(paid - total, 0) : 0,
+    items: [{ id: "manual-sale", name: memo || "売上入力", price: total, qty: 1 }]
+  };
+}
+
+async function saveManualSale(event) {
+  event.preventDefault();
+  const sale = saleFromManualForm();
+  if (!sale) {
+    if (manualSaleMessage) manualSaleMessage.textContent = "日付・販売先・金額を確認してください";
+    showToast("日付・販売先・金額を確認してください");
+    return;
+  }
+
+  const sales = getSales();
+  const existingIndex = sales.findIndex((item) => item.id === sale.id);
+  if (existingIndex >= 0) sales[existingIndex] = sale;
+  else sales.unshift(sale);
+  saveSales(sales.sort((a, b) => new Date(b.at) - new Date(a.at)));
+  historyMonth.value = saleMonthValue(sale);
+  if (historyDate) historyDate.value = dateValue(new Date(sale.at));
+  const saved = await saveSharedNow();
+  renderHistory();
+  resetManualSaleForm(dateValue(new Date(sale.at)));
+  showToast(saved ? "売上を保存しました" : "この端末に保存しました。通信できたら反映されます");
+}
+
+function editSaleById(saleId) {
+  const sale = getSales().find((item) => item.id === saleId);
+  if (!sale) {
+    showToast("訂正する売上が見つかりません");
+    return;
+  }
+  fillManualSaleForm(sale);
 }
 
 function billingKeyForSale(sale) {
@@ -1299,10 +1421,12 @@ function renderHistory() {
       <span>預かり ${yen(salePaidAmount(sale))} / おつり ${yen(sale.change || 0)}</span>
       <div class="history-actions">
         <button class="secondary receipt-button" type="button">領収書</button>
+        <button class="secondary edit-sale-button" type="button">訂正</button>
         <button class="danger delete-sale-button" type="button">売上取消</button>
       </div>
     `;
     row.querySelector(".receipt-button").addEventListener("click", () => createReceipt(sale));
+    row.querySelector(".edit-sale-button").addEventListener("click", () => editSaleById(sale.id));
     row.querySelector(".delete-sale-button").addEventListener("click", () => deleteSaleById(sale.id));
     historyList.append(row);
   });
@@ -2121,6 +2245,7 @@ checkoutButton.addEventListener("click", checkout);
 
 document.querySelector("#historyButton").addEventListener("click", async () => {
   historyMonth.value = historyMonth.value || monthValue();
+  resetManualSaleForm();
   renderHistory();
   historyDialog.showModal();
   await syncFromShared();
@@ -2160,6 +2285,20 @@ document.querySelector("#closeSettlementButton").addEventListener("click", () =>
 document.querySelector("#exportButton").addEventListener("click", exportCsv);
 document.querySelector("#invoiceButton").addEventListener("click", createInvoices);
 document.querySelector("#settlementCsvButton").addEventListener("click", exportSettlementCsv);
+if (manualSaleForm) {
+  manualSaleForm.addEventListener("submit", saveManualSale);
+  document.querySelector("#clearManualSaleButton").addEventListener("click", () => resetManualSaleForm());
+  manualPaymentMethod.addEventListener("change", () => {
+    if (manualPaymentMethod.value === "cash" && !manualPaidAmount.value && manualSaleTotal.value) {
+      manualPaidAmount.value = manualSaleTotal.value;
+    }
+  });
+  manualSaleTotal.addEventListener("input", () => {
+    if (manualPaymentMethod.value === "cash" && !manualPaidAmount.value) {
+      manualPaidAmount.value = manualSaleTotal.value;
+    }
+  });
+}
 settlementDate.addEventListener("change", async () => {
   renderSettlement();
   await syncFromShared();

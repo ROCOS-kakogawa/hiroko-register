@@ -202,6 +202,66 @@
         <button class="summary-button" type="button" data-payment-filter="paypay"><span>PayPay</span><strong id="paypayTotal">0円</strong></button>
         <button class="summary-button" type="button" data-payment-filter="unpaid"><span>未収</span><strong id="unpaidTotal">0円</strong></button>
       </div>
+      <form class="manual-sale-form" id="manualSaleForm">
+        <input id="manualSaleId" type="hidden">
+        <div class="manual-sale-head">
+          <div>
+            <h2>あとから売上入力・訂正</h2>
+            <p class="helper-text">5月分など過去の日付でも入力できます</p>
+          </div>
+          <button class="secondary" id="clearManualSaleButton" type="button">新規入力</button>
+        </div>
+        <div class="manual-sale-grid">
+          <label>
+            売上日
+            <input id="manualSaleDate" type="date" required>
+          </label>
+          <label>
+            時刻
+            <input id="manualSaleTime" type="time">
+          </label>
+          <label>
+            会社・販売先
+            <input id="manualCompanyName" type="text" placeholder="例：井上化成" required>
+          </label>
+          <label>
+            請求先
+            <input id="manualBillingName" type="text" placeholder="空なら会社名">
+          </label>
+          <label>
+            配達先
+            <input id="manualDeliveryName" type="text" placeholder="空なら会社名">
+          </label>
+          <label>
+            支払い
+            <select id="manualPaymentMethod">
+              <option value="unpaid">未収</option>
+              <option value="cash">現金</option>
+              <option value="paypay">PayPay</option>
+            </select>
+          </label>
+          <label>
+            売上金額
+            <input id="manualSaleTotal" type="number" inputmode="numeric" min="1" required>
+          </label>
+          <label>
+            預かり金
+            <input id="manualPaidAmount" type="number" inputmode="numeric" min="0" placeholder="現金のみ">
+          </label>
+          <label>
+            担当
+            <input id="manualCashierName" type="text" placeholder="空なら現在の担当">
+          </label>
+          <label class="manual-sale-memo">
+            備考
+            <textarea id="manualSaleMemo" rows="2" placeholder="必要なメモ"></textarea>
+          </label>
+        </div>
+        <div class="manual-sale-actions">
+          <button class="checkout small-checkout" type="submit">売上を保存</button>
+          <span id="manualSaleMessage" role="status"></span>
+        </div>
+      </form>
       <div class="history-view-tabs" aria-label="売上表示切替">
         <button class="history-view-tab active" type="button" data-history-view="sales">売上一覧</button>
         <button class="history-view-tab" type="button" data-history-view="company">会社別</button>

@@ -1692,7 +1692,7 @@ function issuerHtmlWithStamp() {
 function invoiceRecipientName(group) {
   const billingLabel = invoiceRecipientLabel(group.billing);
   const defaultName = billingLabel !== group.billing
-    ? billingLabel
+    ? `${group.company && group.company !== group.billing ? group.company : ""}${billingLabel}`
     : group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
   const isStoreSale = group.sales.every((sale) =>
     (sale.companyName || sale.customerName) === "店頭販売" ||
@@ -1712,7 +1712,7 @@ function invoiceRecipientLabel(name) {
 
 function invoiceRecipientHtml(name) {
   if (!name) return "　";
-  return `${escapeHtml(name)} 御中`;
+  return `${escapeHtml(name)}御中`;
 }
 
 function shouldShowPaypayQr(group) {
@@ -1720,8 +1720,12 @@ function shouldShowPaypayQr(group) {
     group.company,
     group.billing,
     ...group.sales.flatMap((sale) => [sale.companyName, sale.customerName, sale.deliveryName, sale.billingName])
-  ].filter(Boolean).join(" ");
+  ].filter(Boolean).join(" ").replace(/\s/g, "");
   return names.includes("いちよし証券");
+}
+
+function assetUrl(path) {
+  return new URL(path, window.location.href).href;
 }
 
 function createReceiptForGroup(group) {
@@ -1810,7 +1814,7 @@ function invoiceHtmlForGroup(group, selectedMonth) {
     ? `
         <div class="invoice-info paypay-invoice-qr">
           <span>PayPay お支払いQR</span>
-          <img src="paypay-qr.png" alt="PayPay QRコード" onerror="this.closest('.paypay-invoice-qr').hidden = true">
+          <img src="${assetUrl("paypay-qr.png")}" alt="PayPay QRコード" onerror="this.closest('.paypay-invoice-qr').hidden = true">
           <small>PayPayでお支払いの場合はこちらをご利用ください。</small>
         </div>
       `

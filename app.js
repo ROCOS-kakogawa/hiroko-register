@@ -1690,7 +1690,10 @@ function issuerHtmlWithStamp() {
 }
 
 function invoiceRecipientName(group) {
-  const defaultName = group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
+  const billingLabel = invoiceRecipientLabel(group.billing);
+  const defaultName = billingLabel !== group.billing
+    ? billingLabel
+    : group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
   const isStoreSale = group.sales.every((sale) =>
     (sale.companyName || sale.customerName) === "店頭販売" ||
     sale.customerName === "店頭販売"
@@ -1703,6 +1706,7 @@ function invoiceRecipientLabel(name) {
   const text = String(name || "").trim();
   if (text === "職員") return "（職員様）";
   if (text === "利用者") return "（利用者様）";
+  if (text === "検食") return "（検食）";
   return text;
 }
 
@@ -1717,7 +1721,7 @@ function shouldShowPaypayQr(group) {
     group.billing,
     ...group.sales.flatMap((sale) => [sale.companyName, sale.customerName, sale.deliveryName, sale.billingName])
   ].filter(Boolean).join(" ");
-  return group.paypay > 0 && names.includes("いちよし証券");
+  return names.includes("いちよし証券");
 }
 
 function createReceiptForGroup(group) {

@@ -387,7 +387,7 @@ function saveDeletedSaleIds() {
 function logCancelledSale(sale, reason = "1件取消") {
   const entry = {
     id: makeId("cancel"),
-    at: new Date().toISOString(),
+    at: localDateTimeString(),
     saleId: sale.id,
     saleAt: sale.at,
     companyName: sale.companyName || sale.customerName || "お客様",
@@ -1116,7 +1116,11 @@ function timeValue(date = new Date()) {
 function localIsoFromDateTime(dateText, timeText) {
   const safeDate = dateText || dateValue();
   const safeTime = timeText || "12:00";
-  return new Date(`${safeDate}T${safeTime}:00`).toISOString();
+  return `${safeDate}T${safeTime}:00`;
+}
+
+function localDateTimeString(date = new Date()) {
+  return `${dateValue(date)}T${timeValue(date)}:00`;
 }
 
 function initCheckoutSaleDateTime() {

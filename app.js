@@ -380,6 +380,35 @@ function mergeSales(localSales, sharedSales) {
   return [...merged.values()].sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
+function normalizeDeliveryRecords(records) {
+  return (Array.isArray(records) ? records : [])
+    .map((record) => {
+      if (typeof record === "string") {
+        return { id: makeId("delivery"), company: record, billing: record, delivery: record };
+      }
+      const company = String(record.company || record.name || record.delivery || "").trim();
+      if (!company) return null;
+      return {
+        id: record.id || makeId("delivery"),
+        company,
+        billing: String(record.billing || company).trim() || company,
+        delivery: String(record.delivery || company).trim() || company
+      };
+    })
+    .filter(Boolean);
+}
+
+function mergeDeliveryRecords(localRecords, sharedRecords) {
+  const merged = new Map();
+  normalizeDeliveryRecords(sharedRecords).forEach((record) => {
+    merged.set(`${record.company}|||${record.billing}|||${record.delivery}`, record);
+  });
+  normalizeDeliveryRecords(localRecords).forEach((record) => {
+    merged.set(`${record.company}|||${record.billing}|||${record.delivery}`, record);
+  });
+  return [...merged.values()].sort((a, b) => deliveryLabel(a).localeCompare(deliveryLabel(b), "ja"));
+}
+
 function saveDeletedSaleIds() {
   localStorage.setItem(storageKeys.deletedSales, JSON.stringify(state.deletedSaleIds));
 }
@@ -492,7 +521,7 @@ function applySharedData(data) {
     localStorage.setItem(storageKeys.customers, JSON.stringify(state.customers));
   }
   if (Array.isArray(data.deliveryRecords) && data.deliveryRecords.length > 0) {
-    state.deliveryRecords = data.deliveryRecords;
+    state.deliveryRecords = mergeDeliveryRecords(state.deliveryRecords, data.deliveryRecords);
     localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
   }
   if (Array.isArray(data.staff) && data.staff.length > 0) {
@@ -630,6 +659,10 @@ async function saveCloudNow() {
     if (data && data.data && Array.isArray(data.data.sales)) {
       const mergedSales = mergeSales(getSales(), data.data.sales);
       localStorage.setItem(storageKeys.sales, JSON.stringify(mergedSales));
+    }
+    if (data && data.data && Array.isArray(data.data.deliveryRecords)) {
+      state.deliveryRecords = mergeDeliveryRecords(state.deliveryRecords, data.data.deliveryRecords);
+      localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
     }
     const { error } = await state.cloudClient
       .from("register_state")
@@ -2226,7 +2259,7 @@ document.querySelector("#storeSaleButton").addEventListener("click", () => {
   openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }, "store");
 });
 
-document.querySelector("#addDeliveryButton").addEventListener("click", () => {
+document.querySelector("#addDeliveryButton").addEventListener("click", async () => {
   const companyInput = document.querySelector("#newCompanyName");
   const billingInput = document.querySelector("#newBillingName");
   const deliveryInput = document.querySelector("#newDeliveryName");
@@ -2246,6 +2279,7 @@ document.querySelector("#addDeliveryButton").addEventListener("click", () => {
     state.deliveryRecords.sort((a, b) => deliveryLabel(a).localeCompare(deliveryLabel(b), "ja"));
     saveDeliveryRecords();
   }
+  const sharedSaved = await saveSharedNow();
   companyInput.value = "";
   billingInput.value = "";
   deliveryInput.value = "";
@@ -2255,16 +2289,18 @@ document.querySelector("#addDeliveryButton").addEventListener("click", () => {
   );
   if (saved) deliverySelect.value = saved.id;
   renderDeliverySettings();
-  showToast("会社・請求先・配達先を登録しました");
+  showToast(sharedSaved ? "会社・請求先・配達先を登録しました" : "この端末に登録しました。通信できたら反映されます");
 });
 
-document.querySelector("#deleteDeliveryButton").addEventListener("click", () => {
+document.querySelector("#deleteDeliveryButton").addEventListener("click", async () => {
   const record = state.deliveryRecords.find((item) => item.id === deliverySelect.value);
   if (!record || !confirm(`${deliveryLabel(record)} をリストから削除しますか？`)) return;
   state.deliveryRecords = state.deliveryRecords.filter((item) => item.id !== record.id);
   saveDeliveryRecords();
+  const sharedSaved = await saveSharedNow();
   renderDeliveryNames();
   renderDeliverySettings();
+  showToast(sharedSaved ? "配達先を削除しました" : "この端末では削除しました。通信後にもう一度確認してください");
 });
 
 document.querySelector("#renameCustomerButton").addEventListener("click", () => {

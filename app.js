@@ -57,7 +57,6 @@ const state = {
 };
 let undoSnapshot = null;
 let historyPaymentFilter = "all";
-let selectedDeliveryRecordId = "";
 if (!state.customers.length) {
   state.customers = loadCustomers();
 }
@@ -805,8 +804,6 @@ function editDeliveryRecord(id) {
   const record = state.deliveryRecords.find((item) => item.id === id);
   if (!record) return;
 
-  selectedDeliveryRecordId = record.id;
-
   const company = prompt("会社名", record.company);
   if (company === null) return;
   const delivery = prompt("配達先名", record.delivery);
@@ -819,7 +816,6 @@ function editDeliveryRecord(id) {
   record.billing = billing.trim() || record.billing;
   saveDeliveryRecords();
   renderDeliveryNames();
-  deliverySelect.value = record.id;
   renderDeliverySettings();
   showToast("配達先を編集しました");
 }
@@ -2215,15 +2211,12 @@ document.querySelector("#addDeliveryButton").addEventListener("click", () => {
 });
 
 document.querySelector("#deleteDeliveryButton").addEventListener("click", () => {
-  const targetId = selectedDeliveryRecordId || deliverySelect.value;
-  const record = state.deliveryRecords.find((item) => item.id === targetId);
+  const record = state.deliveryRecords.find((item) => item.id === deliverySelect.value);
   if (!record || !confirm(`${deliveryLabel(record)} をリストから削除しますか？`)) return;
   state.deliveryRecords = state.deliveryRecords.filter((item) => item.id !== record.id);
-  selectedDeliveryRecordId = "";
   saveDeliveryRecords();
   renderDeliveryNames();
   renderDeliverySettings();
-  showToast("配達先を削除しました");
 });
 
 document.querySelector("#renameCustomerButton").addEventListener("click", () => {
@@ -2479,5 +2472,3 @@ ensureCloudLogin().then(async (ready) => {
   renderProducts();
   renderAll();
 });
-
-

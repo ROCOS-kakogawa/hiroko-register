@@ -763,7 +763,10 @@ function renderDeliveryNames() {
   );
   deliverySelect.value = selectedRecord ? selectedRecord.id : "";
   const deleteButton = document.querySelector("#deleteDeliveryButton");
-  if (deleteButton) deleteButton.disabled = state.deliveryRecords.length === 0;
+  if (deleteButton) {
+    deleteButton.hidden = true;
+    deleteButton.disabled = true;
+  }
 }
 
 function renderStaffSelectors() {
@@ -786,19 +789,55 @@ function renderDeliverySettings() {
   deliveryList.innerHTML = "";
   state.deliveryRecords.forEach((record) => {
     const row = document.createElement("div");
-      row.className = "billing-item";
-      const title = record.company === record.delivery && record.company === record.billing
-        ? record.company
-        : `${record.company} / ${record.delivery} / ${record.billing}`;
-      row.innerHTML = `
+    row.className = "billing-item";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-expanded", "false");
+    const title = record.company === record.delivery && record.company === record.billing
+      ? record.company
+      : `${record.company} / ${record.delivery} / ${record.billing}`;
+    row.innerHTML = `
       <strong>${escapeHtml(title)}</strong>
       <span>会社 / 配達先 / 請求先</span>
-      <button class="secondary receipt-button" type="button">編集</button>
+      <div class="delivery-row-actions" hidden>
+        <button class="secondary receipt-button" data-action="edit" type="button">編集</button>
+        <button class="danger receipt-button" data-action="delete" type="button">削除</button>
+      </div>
     `;
-    row.querySelector("button").addEventListener("click", () => editDeliveryRecord(record.id));
+    const actions = row.querySelector(".delivery-row-actions");
+    const toggleActions = () => {
+      const willOpen = actions.hidden;
+      deliveryList.querySelectorAll(".delivery-row-actions").forEach((item) => { item.hidden = true; });
+      deliveryList.querySelectorAll(".billing-item").forEach((item) => item.setAttribute("aria-expanded", "false"));
+      actions.hidden = !willOpen;
+      row.setAttribute("aria-expanded", String(willOpen));
+    };
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      toggleActions();
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleActions();
+      }
+    });
+    actions.querySelector('[data-action="edit"]').addEventListener("click", () => editDeliveryRecord(record.id));
+    actions.querySelector('[data-action="delete"]').addEventListener("click", () => deleteDeliveryRecord(record.id));
     deliveryList.append(row);
   });
 }
+
+function deleteDeliveryRecord(id) {
+  const record = state.deliveryRecords.find((item) => item.id === id);
+  if (!record || !confirm(`${deliveryLabel(record)} をリストから削除しますか？\n過去の売上履歴は消えません。`)) return;
+  state.deliveryRecords = state.deliveryRecords.filter((item) => item.id !== record.id);
+  saveDeliveryRecords();
+  renderDeliveryNames();
+  renderDeliverySettings();
+  showToast("配達先を削除しました");
+}
+
 
 function editDeliveryRecord(id) {
   const record = state.deliveryRecords.find((item) => item.id === id);

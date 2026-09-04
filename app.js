@@ -2217,6 +2217,40 @@ document.querySelector("#storeSaleButton").addEventListener("click", () => {
   openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }, "store");
 });
 
+document.querySelector("#restoreDeliveryButton").addEventListener("click", () => {
+  const existingKeys = new Set(state.deliveryRecords.map((record) =>
+    `${record.company}\u0000${record.delivery}\u0000${record.billing}`
+  ));
+  const recovered = [];
+  const recoveredKeys = new Set();
+
+  getSales().forEach((sale) => {
+    const company = String(sale.companyName || sale.customerName || "").trim();
+    if (!company || company === "店頭販売") return;
+    const delivery = String(sale.deliveryName || sale.customerName || company).trim() || company;
+    const billing = String(sale.billingName || sale.customerName || company).trim() || company;
+    const key = `${company}\u0000${delivery}\u0000${billing}`;
+    if (existingKeys.has(key) || recoveredKeys.has(key)) return;
+    recoveredKeys.add(key);
+    recovered.push({ id: makeId("delivery"), company, delivery, billing });
+  });
+
+  if (!recovered.length) {
+    showToast("売上履歴から復元できる配達先はありませんでした");
+    return;
+  }
+
+  const names = recovered.map((record) => deliveryLabel(record)).join("\n");
+  if (!confirm(`次の配達先を売上履歴から復元しますか？\n\n${names}`)) return;
+  state.deliveryRecords.push(...recovered);
+  state.deliveryRecords.sort((a, b) => deliveryLabel(a).localeCompare(deliveryLabel(b), "ja"));
+  saveDeliveryRecords();
+  renderDeliveryNames();
+  renderDeliverySettings();
+  showToast(`${recovered.length}件の配達先を復元しました`);
+});
+
+
 document.querySelector("#addDeliveryButton").addEventListener("click", () => {
   const companyInput = document.querySelector("#newCompanyName");
   const billingInput = document.querySelector("#newBillingName");

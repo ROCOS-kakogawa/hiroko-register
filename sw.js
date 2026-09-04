@@ -1,4 +1,4 @@
-const CACHE_NAME = "bento-register-v34";
+const CACHE_NAME = "bento-register-v35";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -39,4 +39,3 @@ self.addEventListener("fetch", (event) => {
     )
   );
 });
-

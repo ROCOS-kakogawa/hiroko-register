@@ -1,4 +1,4 @@
-const CACHE_NAME = "bento-register-v34";
+const CACHE_NAME = "bento-register-v36";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -39,4 +39,8 @@ self.addEventListener("fetch", (event) => {
     )
   );
 });
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> 0e0c407 (Force iPad clients to load the latest register app)

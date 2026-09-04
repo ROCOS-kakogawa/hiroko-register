@@ -57,6 +57,7 @@ const state = {
 };
 let undoSnapshot = null;
 let historyPaymentFilter = "all";
+let selectedDeliveryRecordId = "";
 if (!state.customers.length) {
   state.customers = loadCustomers();
 }
@@ -380,35 +381,6 @@ function mergeSales(localSales, sharedSales) {
   return [...merged.values()].sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
-function normalizeDeliveryRecords(records) {
-  return (Array.isArray(records) ? records : [])
-    .map((record) => {
-      if (typeof record === "string") {
-        return { id: makeId("delivery"), company: record, billing: record, delivery: record };
-      }
-      const company = String(record.company || record.name || record.delivery || "").trim();
-      if (!company) return null;
-      return {
-        id: record.id || makeId("delivery"),
-        company,
-        billing: String(record.billing || company).trim() || company,
-        delivery: String(record.delivery || company).trim() || company
-      };
-    })
-    .filter(Boolean);
-}
-
-function mergeDeliveryRecords(localRecords, sharedRecords) {
-  const merged = new Map();
-  normalizeDeliveryRecords(sharedRecords).forEach((record) => {
-    merged.set(`${record.company}|||${record.billing}|||${record.delivery}`, record);
-  });
-  normalizeDeliveryRecords(localRecords).forEach((record) => {
-    merged.set(`${record.company}|||${record.billing}|||${record.delivery}`, record);
-  });
-  return [...merged.values()].sort((a, b) => deliveryLabel(a).localeCompare(deliveryLabel(b), "ja"));
-}
-
 function saveDeletedSaleIds() {
   localStorage.setItem(storageKeys.deletedSales, JSON.stringify(state.deletedSaleIds));
 }
@@ -416,7 +388,7 @@ function saveDeletedSaleIds() {
 function logCancelledSale(sale, reason = "1件取消") {
   const entry = {
     id: makeId("cancel"),
-    at: localDateTimeString(),
+    at: new Date().toISOString(),
     saleId: sale.id,
     saleAt: sale.at,
     companyName: sale.companyName || sale.customerName || "お客様",
@@ -521,7 +493,7 @@ function applySharedData(data) {
     localStorage.setItem(storageKeys.customers, JSON.stringify(state.customers));
   }
   if (Array.isArray(data.deliveryRecords) && data.deliveryRecords.length > 0) {
-    state.deliveryRecords = mergeDeliveryRecords(state.deliveryRecords, data.deliveryRecords);
+    state.deliveryRecords = data.deliveryRecords;
     localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
   }
   if (Array.isArray(data.staff) && data.staff.length > 0) {
@@ -659,10 +631,6 @@ async function saveCloudNow() {
     if (data && data.data && Array.isArray(data.data.sales)) {
       const mergedSales = mergeSales(getSales(), data.data.sales);
       localStorage.setItem(storageKeys.sales, JSON.stringify(mergedSales));
-    }
-    if (data && data.data && Array.isArray(data.data.deliveryRecords)) {
-      state.deliveryRecords = mergeDeliveryRecords(state.deliveryRecords, data.data.deliveryRecords);
-      localStorage.setItem(storageKeys.deliveryRecords, JSON.stringify(state.deliveryRecords));
     }
     const { error } = await state.cloudClient
       .from("register_state")
@@ -837,6 +805,8 @@ function editDeliveryRecord(id) {
   const record = state.deliveryRecords.find((item) => item.id === id);
   if (!record) return;
 
+  selectedDeliveryRecordId = record.id;
+
   const company = prompt("会社名", record.company);
   if (company === null) return;
   const delivery = prompt("配達先名", record.delivery);
@@ -849,6 +819,7 @@ function editDeliveryRecord(id) {
   record.billing = billing.trim() || record.billing;
   saveDeliveryRecords();
   renderDeliveryNames();
+  deliverySelect.value = record.id;
   renderDeliverySettings();
   showToast("配達先を編集しました");
 }
@@ -1149,11 +1120,7 @@ function timeValue(date = new Date()) {
 function localIsoFromDateTime(dateText, timeText) {
   const safeDate = dateText || dateValue();
   const safeTime = timeText || "12:00";
-  return `${safeDate}T${safeTime}:00`;
-}
-
-function localDateTimeString(date = new Date()) {
-  return `${dateValue(date)}T${timeValue(date)}:00`;
+  return new Date(`${safeDate}T${safeTime}:00`).toISOString();
 }
 
 function initCheckoutSaleDateTime() {
@@ -1727,42 +1694,13 @@ function issuerHtmlWithStamp() {
 }
 
 function invoiceRecipientName(group) {
-  const billingLabel = invoiceRecipientLabel(group.billing);
-  const defaultName = billingLabel !== group.billing
-    ? `${group.company && group.company !== group.billing ? group.company : ""}${billingLabel}`
-    : group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
+  const defaultName = group.company === group.billing ? group.company : `${group.company} ${group.billing}`;
   const isStoreSale = group.sales.every((sale) =>
     (sale.companyName || sale.customerName) === "店頭販売" ||
     sale.customerName === "店頭販売"
   );
-  if (!isStoreSale) return invoiceRecipientLabel(defaultName);
+  if (!isStoreSale) return defaultName;
   return (prompt("請求書の宛名を入力してください（空白でも作れます）", "") || "").trim();
-}
-
-function invoiceRecipientLabel(name) {
-  const text = String(name || "").trim();
-  if (text === "職員") return "（職員様）";
-  if (text === "利用者") return "（利用者様）";
-  if (text === "検食") return "（検食）";
-  return text;
-}
-
-function invoiceRecipientHtml(name) {
-  if (!name) return "　";
-  return `${escapeHtml(name)}御中`;
-}
-
-function shouldShowPaypayQr(group) {
-  const names = [
-    group.company,
-    group.billing,
-    ...group.sales.flatMap((sale) => [sale.companyName, sale.customerName, sale.deliveryName, sale.billingName])
-  ].filter(Boolean).join(" ").replace(/\s/g, "");
-  return names.includes("いちよし証券");
-}
-
-function assetUrl(path) {
-  return new URL(path, window.location.href).href;
 }
 
 function createReceiptForGroup(group) {
@@ -1847,15 +1785,6 @@ function invoiceHtmlForGroup(group, selectedMonth) {
   const taxRate = Number(receiptTaxRate.value || 8);
   const tax = taxFromIncluded(group.total, taxRate);
   const beforeTax = group.total - tax;
-  const paypayQrHtml = shouldShowPaypayQr(group)
-    ? `
-        <div class="invoice-info paypay-invoice-qr">
-          <span>PayPay お支払いQR</span>
-          <img src="${assetUrl("paypay-qr.png")}" alt="PayPay QRコード" onerror="this.closest('.paypay-invoice-qr').hidden = true">
-          <small>PayPayでお支払いの場合はこちらをご利用ください。</small>
-        </div>
-      `
-    : "";
   const rows = [];
   group.sales
     .slice()
@@ -1883,7 +1812,7 @@ function invoiceHtmlForGroup(group, selectedMonth) {
       <div class="invoice-head">
         <div>
           <p class="invoice-label">請求書</p>
-          <h1>${invoiceRecipientHtml(recipientName)}</h1>
+          <h1>${recipientName ? `${escapeHtml(recipientName)} 御中` : "　"}</h1>
           ${deliveryHtml}
           <p>${escapeHtml(group.company)} / ${escapeHtml(selectedMonth)} ご利用分</p>
         </div>
@@ -1903,7 +1832,6 @@ function invoiceHtmlForGroup(group, selectedMonth) {
           <span>振込先口座</span>
           <strong>${escapeHtml(bankAccount).replaceAll("\n", "<br>")}</strong>
         </div>
-        ${paypayQrHtml}
       </div>
       <div class="invoice-summary">
         <span>現金 ${yen(group.cash)}</span>
@@ -1983,9 +1911,6 @@ function openInvoiceWindow(groups, selectedMonth) {
           .invoice-info small { color: #5f6b62; display: block; font-weight: 700; margin-top: 4px; }
           .due-info { border-color: #177a6b; }
           .due-info strong { color: #0d5b50; font-size: 22px; }
-          .paypay-invoice-qr { align-items: center; display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) 150px; gap: 12px; }
-          .paypay-invoice-qr span, .paypay-invoice-qr small { grid-column: 1; }
-          .paypay-invoice-qr img { background: #fff; border: 1px solid #d8ded6; border-radius: 8px; grid-column: 2; grid-row: 1 / span 2; padding: 8px; width: 150px; }
           .invoice-summary { display: flex; gap: 10px; margin: 20px 0; }
           .invoice-summary span { background: #f4f6f1; border-radius: 8px; font-weight: 700; padding: 10px 12px; }
           .invoice-tax { display: flex; gap: 10px; justify-content: flex-end; margin: 0 0 16px; }
@@ -2000,8 +1925,6 @@ function openInvoiceWindow(groups, selectedMonth) {
           }
           @media (max-width: 720px) {
             .invoice-info-grid { grid-template-columns: 1fr; }
-            .paypay-invoice-qr { grid-template-columns: 1fr; }
-            .paypay-invoice-qr img { grid-column: 1; grid-row: auto; }
           }
         </style>
       </head>
@@ -2259,7 +2182,7 @@ document.querySelector("#storeSaleButton").addEventListener("click", () => {
   openCustomerCart("店頭販売", { company: "店頭販売", billing: "店頭販売", delivery: "店頭販売" }, "store");
 });
 
-document.querySelector("#addDeliveryButton").addEventListener("click", async () => {
+document.querySelector("#addDeliveryButton").addEventListener("click", () => {
   const companyInput = document.querySelector("#newCompanyName");
   const billingInput = document.querySelector("#newBillingName");
   const deliveryInput = document.querySelector("#newDeliveryName");
@@ -2279,7 +2202,6 @@ document.querySelector("#addDeliveryButton").addEventListener("click", async () 
     state.deliveryRecords.sort((a, b) => deliveryLabel(a).localeCompare(deliveryLabel(b), "ja"));
     saveDeliveryRecords();
   }
-  const sharedSaved = await saveSharedNow();
   companyInput.value = "";
   billingInput.value = "";
   deliveryInput.value = "";
@@ -2289,18 +2211,19 @@ document.querySelector("#addDeliveryButton").addEventListener("click", async () 
   );
   if (saved) deliverySelect.value = saved.id;
   renderDeliverySettings();
-  showToast(sharedSaved ? "会社・請求先・配達先を登録しました" : "この端末に登録しました。通信できたら反映されます");
+  showToast("会社・請求先・配達先を登録しました");
 });
 
-document.querySelector("#deleteDeliveryButton").addEventListener("click", async () => {
-  const record = state.deliveryRecords.find((item) => item.id === deliverySelect.value);
+document.querySelector("#deleteDeliveryButton").addEventListener("click", () => {
+  const targetId = selectedDeliveryRecordId || deliverySelect.value;
+  const record = state.deliveryRecords.find((item) => item.id === targetId);
   if (!record || !confirm(`${deliveryLabel(record)} をリストから削除しますか？`)) return;
   state.deliveryRecords = state.deliveryRecords.filter((item) => item.id !== record.id);
+  selectedDeliveryRecordId = "";
   saveDeliveryRecords();
-  const sharedSaved = await saveSharedNow();
   renderDeliveryNames();
   renderDeliverySettings();
-  showToast(sharedSaved ? "配達先を削除しました" : "この端末では削除しました。通信後にもう一度確認してください");
+  showToast("配達先を削除しました");
 });
 
 document.querySelector("#renameCustomerButton").addEventListener("click", () => {
@@ -2556,3 +2479,5 @@ ensureCloudLogin().then(async (ready) => {
   renderProducts();
   renderAll();
 });
+
+

@@ -296,6 +296,7 @@
       </section>
       <div class="dialog-actions">
         <button class="checkout small-checkout" id="invoiceButton" type="button">請求書を作る</button>
+        <button class="secondary" id="monthlySalesPrintButton" type="button">月別売上表を印刷</button>
         <button class="secondary" id="exportButton" type="button">CSV保存</button>
         <button class="danger" id="clearHistoryButton" type="button">売上を消す</button>
       </div>
@@ -408,7 +409,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=37"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

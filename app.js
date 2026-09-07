@@ -2057,6 +2057,102 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function printMonthlySalesReport() {
+  const selectedMonth = historyMonth.value || monthValue();
+  const [year, month] = selectedMonth.split("-").map(Number);
+  if (!year || !month) {
+    showToast("印刷する月を選んでください");
+    return;
+  }
+
+  const monthlySales = getSales().filter((sale) => saleMonthValue(sale) === selectedMonth);
+  const daily = new Map();
+  monthlySales.forEach((sale) => {
+    const saleDate = dateValue(new Date(sale.at));
+    const current = daily.get(saleDate) || { count: 0, cash: 0, paypay: 0, unpaid: 0, total: 0 };
+    const amount = Number(sale.total) || 0;
+    current.count += 1;
+    current.total += amount;
+    const method = normalizePaymentMethod(sale.paymentMethod);
+    if (method === "cash") current.cash += amount;
+    if (method === "paypay") current.paypay += amount;
+    if (method === "unpaid") current.unpaid += amount;
+    daily.set(saleDate, current);
+  });
+
+  const totals = { count: 0, cash: 0, paypay: 0, unpaid: 0, total: 0 };
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  const rows = [];
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const values = daily.get(dateKey) || { count: 0, cash: 0, paypay: 0, unpaid: 0, total: 0 };
+    Object.keys(totals).forEach((key) => { totals[key] += values[key]; });
+    const weekday = weekdays[new Date(year, month - 1, day).getDay()];
+    rows.push(`
+      <tr>
+        <td>${month}月${day}日（${weekday}）</td>
+        <td class="num">${values.count}件</td>
+        <td class="num">${yen(values.cash)}</td>
+        <td class="num">${yen(values.paypay)}</td>
+        <td class="num">${yen(values.unpaid)}</td>
+        <td class="num total-cell">${yen(values.total)}</td>
+      </tr>
+    `);
+  }
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    showToast("ポップアップを許可してください");
+    return;
+  }
+  win.document.write(`
+    <!doctype html>
+    <html lang="ja">
+      <head>
+        <meta charset="utf-8">
+        <title>${year}年${month}月 日別売上表</title>
+        <style>
+          @page { size: A4 portrait; margin: 12mm; }
+          body { color: #17211b; font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; }
+          .toolbar { background: #f4f6f1; border-bottom: 1px solid #d8ded6; display: flex; gap: 10px; padding: 12px 18px; }
+          button { background: #f1b84b; border: 0; border-radius: 8px; font: inherit; font-weight: 700; min-height: 44px; padding: 8px 18px; }
+          main { margin: 20px auto; max-width: 900px; }
+          h1 { font-size: 24px; margin: 0 0 6px; text-align: center; }
+          .subtitle { margin: 0 0 14px; text-align: center; }
+          table { border-collapse: collapse; font-size: 12px; width: 100%; }
+          th, td { border: 1px solid #9ba69e; padding: 5px 7px; }
+          th { background: #e9f2ed; text-align: center; }
+          .num { text-align: right; white-space: nowrap; }
+          .total-cell { font-weight: 800; }
+          tfoot th, tfoot td { background: #fff4d8; font-size: 13px; font-weight: 800; }
+          .note { color: #5f6b62; font-size: 11px; margin-top: 8px; }
+          @media print {
+            .toolbar { display: none; }
+            main { margin: 0; max-width: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.close()">戻る</button><button onclick="window.print()">印刷・PDF保存</button></div>
+        <main>
+          <h1>${year}年${month}月　日別売上表</h1>
+          <p class="subtitle">お弁当レジ</p>
+          <table>
+            <thead><tr><th>日付</th><th>件数</th><th>現金</th><th>PayPay</th><th>未収</th><th>総売上</th></tr></thead>
+            <tbody>${rows.join("")}</tbody>
+            <tfoot>
+              <tr><th>月合計</th><td class="num">${totals.count}件</td><td class="num">${yen(totals.cash)}</td><td class="num">${yen(totals.paypay)}</td><td class="num">${yen(totals.unpaid)}</td><td class="num">${yen(totals.total)}</td></tr>
+            </tfoot>
+          </table>
+          <p class="note">総売上は、現金・PayPay・未収を含む登録済み売上の合計です。</p>
+        </main>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 function updateClock() {
   clock.textContent = new Date().toLocaleString("ja-JP", {
     month: "numeric",
@@ -2331,6 +2427,7 @@ document.querySelector("#closeDeliveryButton").addEventListener("click", () => d
 document.querySelector("#closePaypayQrButton").addEventListener("click", () => paypayQrDialog.close());
 document.querySelector("#closeSettlementButton").addEventListener("click", () => settlementDialog.close());
 document.querySelector("#exportButton").addEventListener("click", exportCsv);
+document.querySelector("#monthlySalesPrintButton").addEventListener("click", printMonthlySalesReport);
 document.querySelector("#invoiceButton").addEventListener("click", createInvoices);
 document.querySelector("#settlementCsvButton").addEventListener("click", exportSettlementCsv);
 if (manualSaleForm) {
